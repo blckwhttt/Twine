@@ -1,7 +1,7 @@
 {
   "name": "frontend",
-  "version": "1.0.0",
-  "description": "Общение стало качественным, удобным и бесплатным.",
+  "version": "0.2.1",
+  "description": "Communication became quality, convenient, and free.",
   "author": "Hello, it's me",
   "scripts": {
     "ng": "ng",
@@ -11,7 +11,7 @@
     "test": "ng test",
     "electron:start": "ng build --base-href ./ && electron .",
     "electron:build": "ng build --base-href ./ && electron-builder",
-    "electron:publish": "dotenv -e .env -- ng build --base-href ./ && electron-builder --publish always"
+    "electron:publish": "ng build --base-href ./ && dotenv -e .env -- electron-builder --publish always"
   },
   "prettier": {
     "printWidth": 100,
@@ -65,7 +65,7 @@
   "main": "main.js",
   "build": {
     "appId": "com.helloitsme.app",
-    "productName": "HelloitsmeSetup",
+    "productName": "Hello, it's me",
     "npmRebuild": false,
     "directories": {
       "output": "dist_electron"
@@ -88,7 +88,8 @@
     "asarUnpack": [],
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "HelloitsmeSetup.${ext}"
     },
     "publish": [
       {

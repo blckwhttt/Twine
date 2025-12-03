@@ -14,13 +14,17 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { ActivatedRoute, Router, NavigationEnd } from '@angular/router';
 import { Subject, takeUntil, firstValueFrom, combineLatest, Subscription, filter } from 'rxjs';
 import { UploadService } from '../../../core/services/upload.service';
-import { WebrtcService } from '../../../core/services/webrtc.service';
+import { WebrtcService, MicrophoneStatus } from '../../../core/services/webrtc.service';
 import {
   WebsocketService,
   RoomParticipant,
   WebrtcParticipant,
   ChatMessage,
 } from '../../../core/services/websocket.service';
+import {
+  ElectronService,
+  ElectronScreenSource,
+} from '../../../core/services/electron.service';
 import { WebrtcApiService } from '../../../core/services/webrtc-api.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { User } from '../../../core/models/user.model';
@@ -69,6 +73,9 @@ import {
   Zap,
   Maximize,
   Check,
+  RefreshCcw,
+  AppWindow,
+  MonitorUp,
 } from 'lucide-angular';
 import { environment } from '../../../../environments/environment';
 
@@ -88,6 +95,15 @@ interface ScreenShareOption {
   width: number;
   height: number;
   frameRate: number;
+}
+
+interface ScreenShareSource {
+  id: string;
+  name: string;
+  type: 'screen' | 'window';
+  displayId?: string | null;
+  thumbnail?: SafeUrl | null;
+  appIcon?: SafeUrl | null;
 }
 
 export interface DateSeparator {
@@ -183,6 +199,9 @@ export class CallRoomComponent implements OnInit, OnDestroy {
   readonly Zap = Zap;
   readonly Maximize = Maximize;
   readonly Check = Check;
+  readonly RefreshCcw = RefreshCcw;
+  readonly AppWindow = AppWindow;
+  readonly MonitorUp = MonitorUp;
 
   roomId: string = '';
   currentUser: User | null = null;
@@ -215,6 +234,7 @@ export class CallRoomComponent implements OnInit, OnDestroy {
   screenShareOptions: ScreenShareOption[] = [];
   selectedScreenShareQuality: ScreenShareQuality | null = null;
   localScreenStream: MediaStream | null = null;
+  isElectronApp = false;
 
   // Участники
   remotePeers: RemotePeer[] = [];
@@ -223,11 +243,15 @@ export class CallRoomComponent implements OnInit, OnDestroy {
   // Ошибки
   error: string | null = null;
   audioAutoplayBlocked = false;
+  
+  // Статус микрофона
+  microphoneStatus: MicrophoneStatus = 'pending';
 
   // Модальные окна
   showLeaveModal = false;
   showCopyNotification = false;
   showScreenShareModal = false;
+  showScreenSourceModal = false;
   showScreenPreviewModal = false;
   previewStream: MediaStream | null = null;
   previewTitle = 'Демонстрация экрана';
@@ -235,6 +259,12 @@ export class CallRoomComponent implements OnInit, OnDestroy {
   previewAudioEnabled = false;
   previewHasAudio = false;
   previewAudioVolume = 0.85;
+
+  // Источники демонстрации (Electron)
+  screenSources: ScreenShareSource[] = [];
+  screenSourcesLoading = false;
+  screenSourcesError: string | null = null;
+  pendingScreenSource: ScreenShareSource | null = null;
 
   // Контекстное меню участника
   showParticipantContextMenu = false;
@@ -254,12 +284,15 @@ export class CallRoomComponent implements OnInit, OnDestroy {
     private webrtcService: WebrtcService,
     private websocketService: WebsocketService,
     private authService: AuthService,
+    private electronService: ElectronService,
     private webrtcApiService: WebrtcApiService,
     private participantMenuService: ParticipantMenuService,
     private volumePreferences: VolumePreferencesService,
     private uploadService: UploadService,
     private sanitizer: DomSanitizer
-  ) {}
+  ) {
+    this.isElectronApp = this.electronService.isElectronApp();
+  }
 
   async ngOnInit() {
     this.authService.currentUser$.pipe(takeUntil(this.destroy$)).subscribe((user) => {
@@ -303,6 +336,7 @@ export class CallRoomComponent implements OnInit, OnDestroy {
       this.setupWebSocketSubscriptions();
       this.setupWebRTCParticipantSubscriptions();
       this.setupChatSubscriptions();
+      this.setupMicrophoneStatusSubscription();
 
       // Подключаемся к WebSocket
       this.websocketService.connectSignaling();
@@ -312,13 +346,17 @@ export class CallRoomComponent implements OnInit, OnDestroy {
       // Ждем подключения
       await this.waitForWebSocketConnections();
 
-      // Инициализируем локальный аудио стрим
-      await this.webrtcService.initializeAudioStream();
-      console.log('[CallRoom] Local audio stream initialized');
-
-      // Присоединяемся к комнате
+      // Присоединяемся к комнате (это работает независимо от микрофона)
       await this.websocketService.joinRoom(this.roomId);
       console.log('[CallRoom] Joined room:', this.roomId);
+
+      // Пытаемся инициализировать аудио стрим (не блокирует работу чата)
+      const audioStream = await this.webrtcService.initializeAudioStream();
+      if (audioStream) {
+        console.log('[CallRoom] Local audio stream initialized');
+      } else {
+        console.log('[CallRoom] Microphone not available, continuing without audio');
+      }
 
       // Присоединяемся к чату
       const { messages } = await this.websocketService.joinChatRoom(this.roomId);
@@ -382,6 +420,15 @@ export class CallRoomComponent implements OnInit, OnDestroy {
       this.processMessages();
       this.updateMediaGallery();
       this.scrollToBottom(); // Используем стандартное поведение (плавное или нет, в зависимости от флага)
+    });
+  }
+
+  /**
+   * Настройка подписки на статус микрофона
+   */
+  private setupMicrophoneStatusSubscription(): void {
+    this.webrtcService.microphoneStatus.pipe(takeUntil(this.destroy$)).subscribe((status) => {
+      this.microphoneStatus = status;
     });
   }
 
@@ -1262,14 +1309,31 @@ export class CallRoomComponent implements OnInit, OnDestroy {
    * Переключение микрофона
    */
   toggleMute(): void {
+    // Если микрофон недоступен, пробуем получить доступ
+    if (this.microphoneStatus !== 'granted') {
+      this.requestMicrophoneAccess();
+      return;
+    }
     const newMuteState = this.webrtcService.toggleMute();
     this.websocketService.toggleAudio(this.roomId, !newMuteState);
   }
 
   /**
+   * Запрос доступа к микрофону
+   */
+  async requestMicrophoneAccess(): Promise<void> {
+    const stream = await this.webrtcService.retryMicrophoneAccess();
+    if (stream) {
+      console.log('[CallRoom] Microphone access granted');
+      // Уведомляем других о нашем статусе аудио
+      this.websocketService.toggleAudio(this.roomId, !this.isMuted);
+    }
+  }
+
+  /**
    * Начало демонстрации экрана
    */
-  async startScreenShare(quality?: ScreenShareQuality): Promise<void> {
+  async startScreenShare(quality?: ScreenShareQuality, sourceId?: string): Promise<void> {
     try {
       const targetQuality =
         quality ??
@@ -1278,7 +1342,7 @@ export class CallRoomComponent implements OnInit, OnDestroy {
 
       this.selectedScreenShareQuality = targetQuality;
 
-      const stream = await this.webrtcService.startScreenShare(targetQuality);
+      const stream = await this.webrtcService.startScreenShare(targetQuality, sourceId);
 
       // Добавляем screen share треки во все существующие connections
       await this.webrtcService.addScreenShareToConnections(stream);
@@ -1288,6 +1352,9 @@ export class CallRoomComponent implements OnInit, OnDestroy {
       this.websocketService.startScreenShare(this.roomId);
 
       console.log('[CallRoom] Screen sharing started');
+      if (this.isElectronApp) {
+        this.resetPendingScreenSource();
+      }
     } catch (error: any) {
       console.error('[CallRoom] Error starting screen share:', error);
       this.error = 'Не удалось начать демонстрацию экрана';
@@ -1314,6 +1381,10 @@ export class CallRoomComponent implements OnInit, OnDestroy {
       void this.stopScreenShare();
       return;
     }
+    if (this.isElectronApp) {
+      this.openScreenSourceModal();
+      return;
+    }
     this.openScreenShareModal();
   }
 
@@ -1330,16 +1401,106 @@ export class CallRoomComponent implements OnInit, OnDestroy {
   }
 
   openScreenShareModal(): void {
+    if (this.isElectronApp && !this.pendingScreenSource) {
+      this.openScreenSourceModal();
+      return;
+    }
     this.showScreenShareModal = true;
   }
 
-  closeScreenShareModal(): void {
+  closeScreenShareModal(resetSelection = true): void {
     this.showScreenShareModal = false;
+    if (resetSelection) {
+      this.resetPendingScreenSource();
+    }
+  }
+
+  openScreenSourceModal(): void {
+    if (!this.isElectronApp) {
+      this.openScreenShareModal();
+      return;
+    }
+
+    this.showScreenSourceModal = true;
+    this.screenSourcesError = null;
+    void this.loadScreenSources();
+  }
+
+  closeScreenSourceModal(resetSelection = true): void {
+    this.showScreenSourceModal = false;
+    if (resetSelection) {
+      this.resetPendingScreenSource();
+    }
+  }
+
+  async loadScreenSources(): Promise<void> {
+    if (!this.isElectronApp) {
+      return;
+    }
+    this.screenSourcesLoading = true;
+    this.screenSourcesError = null;
+    try {
+      const sources = await this.electronService.getScreenSources({
+        thumbnailSize: { width: 640, height: 360 },
+        fetchWindowIcons: true,
+      });
+      this.screenSources = sources.map((source) => this.mapElectronSource(source));
+    } catch (error) {
+      console.error('[CallRoom] Failed to load screen sources', error);
+      this.screenSources = [];
+      this.screenSourcesError =
+        'Не удалось получить список окон. Проверьте разрешения и попробуйте снова.';
+    } finally {
+      this.screenSourcesLoading = false;
+    }
+  }
+
+  refreshScreenSources(): void {
+    if (this.screenSourcesLoading) {
+      return;
+    }
+    void this.loadScreenSources();
+  }
+
+  handleScreenSourceSelect(source: ScreenShareSource): void {
+    this.pendingScreenSource = source;
+    this.closeScreenSourceModal(false);
+    this.openScreenShareModal();
+  }
+
+  changeScreenSource(): void {
+    this.closeScreenShareModal(false);
+    this.pendingScreenSource = null;
+    this.openScreenSourceModal();
+  }
+
+  private resetPendingScreenSource(): void {
+    this.pendingScreenSource = null;
+  }
+
+  private mapElectronSource(source: ElectronScreenSource): ScreenShareSource {
+    return {
+      id: source.id,
+      name: (source.name || 'Неизвестный источник').trim(),
+      type: source.type,
+      displayId: source.displayId,
+      thumbnail: source.thumbnail
+        ? (this.sanitizer.bypassSecurityTrustUrl(source.thumbnail) as SafeUrl)
+        : null,
+      appIcon: source.appIcon
+        ? (this.sanitizer.bypassSecurityTrustUrl(source.appIcon) as SafeUrl)
+        : null,
+    };
   }
 
   async selectScreenShareQuality(option: ScreenShareQuality): Promise<void> {
-    this.closeScreenShareModal();
-    await this.startScreenShare(option);
+    if (this.isElectronApp && !this.pendingScreenSource) {
+      this.openScreenSourceModal();
+      return;
+    }
+    const sourceId = this.pendingScreenSource?.id;
+    this.closeScreenShareModal(false);
+    await this.startScreenShare(option, sourceId);
   }
 
   openScreenPreview(stream?: MediaStream | null, title?: string, peerId?: string): void {
@@ -1498,6 +1659,10 @@ export class CallRoomComponent implements OnInit, OnDestroy {
 
   isParticipantMuted(participant: RoomParticipant): boolean {
     if (this.isCurrentParticipant(participant)) {
+      // Если микрофон недоступен, показываем как замьюченный
+      if (this.microphoneStatus !== 'granted') {
+        return true;
+      }
       return this.isMuted;
     }
     const peer = this.findPeerByUserId(participant.id || '');
@@ -1510,6 +1675,38 @@ export class CallRoomComponent implements OnInit, OnDestroy {
     }
     const peer = this.findPeerByUserId(participant.id || '');
     return peer ? peer.isScreenSharing : false;
+  }
+
+  /**
+   * Получение текста тултипа для кнопки микрофона
+   */
+  getMicrophoneTooltip(): string {
+    switch (this.microphoneStatus) {
+      case 'pending':
+        return 'Ожидается доступ к микрофону...';
+      case 'denied':
+        return 'Доступ к микрофону запрещён. Нажмите, чтобы попробовать снова';
+      case 'not-found':
+        return 'Микрофон не найден. Нажмите, чтобы попробовать снова';
+      case 'granted':
+        return this.isMuted ? 'Включить микрофон' : 'Выключить микрофон';
+      default:
+        return 'Микрофон';
+    }
+  }
+
+  /**
+   * Проверка, ждём ли мы доступ к микрофону
+   */
+  get isMicrophonePending(): boolean {
+    return this.microphoneStatus === 'pending';
+  }
+
+  /**
+   * Проверка, есть ли проблема с микрофоном
+   */
+  get hasMicrophoneIssue(): boolean {
+    return this.microphoneStatus === 'denied' || this.microphoneStatus === 'not-found';
   }
 
   // Media Viewer Logic

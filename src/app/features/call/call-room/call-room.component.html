@@ -17,9 +17,150 @@
   </div>
 </app-modal>
 
+<!-- Screen Source Picker Modal -->
+<app-modal
+  [isOpen]="showScreenSourceModal"
+  heading="Выберите окно или экран"
+  size="5xl"
+  [scrollable]="true"
+  (closed)="closeScreenSourceModal()"
+>
+  <div class="flex flex-col gap-4">
+    <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-6">
+      <p class="text-sm text-white/60">Мы используем встроенный выбор вместо системного, поэтому укажите, что хотите показать.</p>
+      <app-button
+        variant="ghost"
+        size="sm"
+        [disabled]="screenSourcesLoading"
+        (clicked)="refreshScreenSources()"
+      >
+        <lucide-icon
+          [img]="RefreshCcw"
+          [size]="16"
+          [class.animate-spin]="screenSourcesLoading"
+        ></lucide-icon>
+        Обновить
+      </app-button>
+    </div>
+
+    @if (screenSourcesError) {
+      <div class="rounded-2xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-100">
+        {{ screenSourcesError }}
+      </div>
+    }
+
+    @if (screenSourcesLoading) {
+      <div class="flex flex-col items-center justify-center gap-3 py-12 text-white/70">
+        <lucide-icon [img]="Loader2" [size]="28" class="animate-spin text-white/70"></lucide-icon>
+        <p class="text-sm">Ищем доступные окна...</p>
+      </div>
+    } @else if (!screenSources.length) {
+      <div class="flex flex-col items-center justify-center gap-4 py-14 text-center">
+        <lucide-icon [img]="MonitorUp" [size]="36" class="text-white/30"></lucide-icon>
+        <div class="text-sm text-white/60">
+          <p>Открытых окон не найдено.</p>
+          <p>Откройте нужное приложение и обновите список.</p>
+        </div>
+      </div>
+    } @else {
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-2">
+        @for (source of screenSources; track source.id) {
+          <button
+            type="button"
+            (click)="handleScreenSourceSelect(source)"
+            class="group flex flex-col gap-3 rounded-2xl border border-white/5 bg-white/5 p-3 text-left transition hover:border-white/15 hover:bg-white/10"
+            [class.border-violet-500/40]="pendingScreenSource?.id === source.id"
+            [class.bg-violet-500/10]="pendingScreenSource?.id === source.id"
+          >
+            <div class="relative aspect-video overflow-hidden rounded-xl border border-white/5 bg-black/40">
+              @if (source.thumbnail) {
+                <img
+                  [src]="source.thumbnail"
+                  alt="{{ source.name }}"
+                  class="h-full w-full object-cover"
+                  draggable="false"
+                />
+              } @else {
+                <div class="flex h-full w-full items-center justify-center bg-gradient-to-br from-zinc-900 to-zinc-800">
+                  <lucide-icon
+                    [img]="source.type === 'screen' ? MonitorUp : AppWindow"
+                    [size]="48"
+                    class="text-white/30"
+                  ></lucide-icon>
+                </div>
+              }
+              <div class="absolute left-3 top-3 rounded-full border border-white/10 bg-black/60 px-3 py-1 text-xs font-semibold text-white/80 backdrop-blur">
+                {{ source.type === 'screen' ? 'Экран' : 'Окно' }}
+              </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-base font-semibold text-white/90">{{ source.name }}</p>
+                <p class="text-sm text-white/50">
+                  @if (source.type === 'screen' && source.displayId) {
+                    Экран {{ source.displayId }}
+                  } @else if (source.type === 'screen') {
+                    Экран
+                  } @else {
+                    Окно приложения
+                  }
+                </p>
+              </div>
+              <div class="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-black/50">
+                @if (source.appIcon) {
+                  <img [src]="source.appIcon" alt="Иконка приложения" class="h-8 w-8 rounded-lg object-cover" />
+                } @else {
+                  <lucide-icon
+                    [img]="source.type === 'screen' ? MonitorUp : AppWindow"
+                    [size]="18"
+                    class="text-white/60"
+                  ></lucide-icon>
+                }
+              </div>
+            </div>
+          </button>
+        }
+      </div>
+    }
+  </div>
+  <div slot="footer">
+    <app-button variant="secondary" size="md" (clicked)="closeScreenSourceModal()">
+      Отмена
+    </app-button>
+  </div>
+</app-modal>
+
 <!-- Screen Share Quality Modal -->
 <app-modal [isOpen]="showScreenShareModal" heading="Выберите качество демонстрации" (closed)="closeScreenShareModal()">
   <div class="flex flex-col gap-3 p-1">
+    @if (isElectronApp && pendingScreenSource; as selectedSource) {
+      <div class="flex items-center gap-4 rounded-2xl border border-white/5 bg-white/5 p-3">
+        <div class="relative h-16 w-28 overflow-hidden rounded-xl border border-white/5 bg-black/40">
+          @if (selectedSource.thumbnail) {
+            <img [src]="selectedSource.thumbnail" alt="Предпросмотр источника" class="h-full w-full object-cover" />
+          } @else {
+            <div class="flex h-full w-full items-center justify-center">
+              <lucide-icon
+                [img]="selectedSource.type === 'screen' ? MonitorUp : AppWindow"
+                [size]="28"
+                class="text-white/50"
+              ></lucide-icon>
+            </div>
+          }
+        </div>
+        <div class="min-w-0 flex-1">
+          <p class="text-xs font-semibold uppercase tracking-wide text-white/50">Источник</p>
+          <p class="truncate text-base font-semibold text-white">{{ selectedSource.name }}</p>
+          <p class="text-sm text-white/50">
+            {{ selectedSource.type === 'screen' ? 'Экран' : 'Окно приложения' }}
+          </p>
+        </div>
+        <app-button variant="ghost" size="sm" (clicked)="changeScreenSource()">
+          Сменить
+        </app-button>
+      </div>
+    }
     @for (option of screenShareOptions; track option.id) {
     <button type="button" (click)="selectScreenShareQuality(option.id)"
       class="group w-full relative overflow-hidden rounded-2xl border p-4 text-left transition-all duration-200"
@@ -138,6 +279,30 @@
       <p class="font-semibold">Браузер заблокировал автоматическое воспроизведение звука.</p>
       <p class="text-white/70 mt-1">Кликните по странице или нажмите любую клавишу, чтобы включить звук участников.</p>
     </div>
+  </div>
+</div>
+}
+
+<!-- Microphone Status Banner -->
+@if (hasMicrophoneIssue && !isLoading) {
+<div class="fixed top-4 left-1/2 -translate-x-1/2 z-40 max-w-lg w-full mx-4">
+  <div
+    class="bg-violet-900/90 backdrop-blur-xl border border-violet-600/50 rounded-xl p-4 shadow-2xl flex items-start gap-3">
+    <lucide-icon [img]="MicOff" [size]="24" class="text-violet-300 shrink-0"></lucide-icon>
+    <div class="text-sm text-white/90 flex-1">
+      @if (microphoneStatus === 'denied') {
+        <p class="font-semibold">Доступ к микрофону не предоставлен</p>
+        <p class="text-white/70 mt-1">Нажмите на кнопку микрофона, чтобы попробовать снова, или разрешите доступ в настройках браузера.</p>
+      } @else if (microphoneStatus === 'not-found') {
+        <p class="font-semibold">Микрофон не найден</p>
+        <p class="text-white/70 mt-1">Подключите микрофон и нажмите на кнопку микрофона для повторной попытки.</p>
+      }
+    </div>
+    <button 
+      (click)="requestMicrophoneAccess()" 
+      class="shrink-0 px-3 py-1.5 rounded-lg bg-violet-500/30 hover:bg-violet-500/50 text-violet-200 text-xs font-medium transition-colors">
+      Повторить
+    </button>
   </div>
 </div>
 }
@@ -433,11 +598,21 @@
         aria-label="Элементы управления">
 
         <!-- Микрофон -->
-        <button (click)="toggleMute()" [class.bg-red-500/15]="isMuted" [class.bg-white/5]="!isMuted"
-          [class.text-white/60]="!isMuted"
+        <button (click)="toggleMute()" 
+          [class.bg-red-500/15]="isMuted && microphoneStatus === 'granted'" 
+          [class.bg-amber-500/15]="hasMicrophoneIssue"
+          [class.bg-violet-500/15]="isMicrophonePending"
+          [class.bg-white/5]="!isMuted && microphoneStatus === 'granted'"
+          [class.text-white/60]="!isMuted && microphoneStatus === 'granted'"
           class="size-[34px] rounded-[10px] flex items-center justify-center transition-all hover:scale-105 hover:bg-white/10"
-          [appTooltip]="isMuted ? 'Включить микрофон' : 'Выключить микрофон'" tooltipPosition="left">
-          @if (!isMuted) {
+          [appTooltip]="getMicrophoneTooltip()" tooltipPosition="left">
+          @if (isMicrophonePending) {
+            <!-- Pending state - pulsing icon -->
+            <lucide-icon [img]="Loader2" [size]="16" class="text-violet-400 animate-spin"></lucide-icon>
+          } @else if (hasMicrophoneIssue) {
+            <!-- Issue state - warning icon -->
+            <lucide-icon [img]="MicOff" [size]="16" class="text-amber-400"></lucide-icon>
+          } @else if (!isMuted) {
             <svg class="size-[16px] text-green-500/95" fill="currentColor" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 20 20" enable-background="new 0 0 20 20" xml:space="preserve"><g stroke-width="0"></g><g stroke-linecap="round" stroke-linejoin="round"></g><g> <path d="M10,12L10,12c-2.2,0-4-1.8-4-4V4c0-2.2,1.8-4,4-4h0c2.2,0,4,1.8,4,4v4C14,10.2,12.2,12,10,12z"></path> <path d="M17.4,10.1c-0.5-0.3-1.1-0.1-1.4,0.4C14.8,12.7,12.5,14,10,14c-2.5,0-4.8-1.3-6.1-3.5C3.7,10,3,9.9,2.6,10.1 c-0.5,0.3-0.6,0.9-0.4,1.4c1.4,2.5,4,4.1,6.8,4.4V18H6c-0.6,0-1,0.4-1,1s0.4,1,1,1h8c0.6,0,1-0.4,1-1s-0.4-1-1-1h-3v-2.1 c2.8-0.3,5.4-1.9,6.8-4.4C18.1,11,17.9,10.4,17.4,10.1z"></path> </g></svg>
           } @else {
             <svg class="size-[16px] text-red-400" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">

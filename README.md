@@ -24,7 +24,7 @@ We use a cutting-edge stack to ensure low latency and high stability:
 - **Lucide Icons** — Crisp visual language.
 
 ## 🚀 Open Source & Context
-This repository contains the **client-side code**. While our Backend (NestJS) is currently private (it's a bit shy), everything here is open for inspection.
+This repository contains the **client-side code**. While our Backend is currently private (it's a bit shy), everything here is open for inspection.
 
 We are building this for production, focusing on security, scalability, and — most importantly — a user experience that respects your time and hardware.
 

@@ -1,10 +1,11 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { LucideAngularModule, Loader2 } from 'lucide-angular';
 
 @Component({
   selector: 'app-button',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, LucideAngularModule],
   template: `
     <button
       [type]="type"
@@ -13,7 +14,7 @@ import { CommonModule } from '@angular/common';
       (click)="handleClick($event)"
     >
       @if (loading) {
-        <span class="animate-pulse opacity-70">⚡</span>
+        <lucide-icon [name]="Loader2" class="animate-spin w-5 h-5"></lucide-icon>
       }
       <ng-content></ng-content>
     </button>
@@ -21,6 +22,8 @@ import { CommonModule } from '@angular/common';
   styles: []
 })
 export class ButtonComponent {
+  readonly Loader2 = Loader2;
+
   @Input() type: 'button' | 'submit' = 'button';
   @Input() variant: 'primary' | 'secondary' | 'danger' | 'success' | 'ghost' = 'primary';
   @Input() size: 'sm' | 'md' | 'lg' = 'md';

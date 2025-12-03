@@ -22,7 +22,7 @@ import { CommonModule } from '@angular/common';
         {{ text }}
       </span>
       } @if (showBeta) {
-      <span class="ml-2 text-white/45 text-xs font-mono -mb-1 cursor-default">Beta 0.2.0</span>
+      <span class="ml-2 text-white/45 text-xs font-mono -mb-1 cursor-default">Beta 0.2.1</span>
       }
     </div>
   `,

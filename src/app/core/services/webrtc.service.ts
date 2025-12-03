@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Subject } from 'rxjs';
 import { WEBRTC_CONFIG, AudioProfileName, ScreenShareQuality } from '../config/webrtc.config';
+import { ElectronService } from './electron.service';
 
 export interface PeerConnectionData {
   peerId: string;
@@ -44,6 +45,25 @@ type SupportedDisplayConstraintSet = MediaTrackSupportedConstraints & {
   selfBrowserSurface?: boolean;
 };
 
+type ChromeDesktopVideoConstraint = MediaTrackConstraints & {
+  mandatory?: {
+    chromeMediaSource: 'desktop';
+    chromeMediaSourceId: string;
+    maxFrameRate?: number;
+    maxWidth?: number;
+    maxHeight?: number;
+  };
+};
+
+type ChromeDesktopAudioConstraint = MediaTrackConstraints & {
+  mandatory?: {
+    chromeMediaSource: 'desktop';
+    chromeMediaSourceId: string;
+  };
+};
+
+export type MicrophoneStatus = 'pending' | 'granted' | 'denied' | 'not-found';
+
 @Injectable({
   providedIn: 'root',
 })
@@ -58,6 +78,8 @@ export class WebrtcService {
   private isScreenSharing$ = new BehaviorSubject<boolean>(false);
   // Выбранное устройство вывода
   private selectedAudioOutputId$ = new BehaviorSubject<string>('default');
+  // Статус доступа к микрофону
+  private microphoneStatus$ = new BehaviorSubject<MicrophoneStatus>('pending');
 
   // Peer connections для каждого участника
   private peerConnections = new Map<string, PeerConnectionData>();
@@ -81,6 +103,8 @@ export class WebrtcService {
   // Настройки обработки аудио
   private audioProcessingSettings = this.loadAudioSettings();
   private selectedDevices = this.loadSelectedDevices();
+
+  constructor(private electronService: ElectronService) {}
 
   private loadAudioSettings() {
     try {
@@ -127,8 +151,9 @@ export class WebrtcService {
 
   /**
    * Инициализация локального аудио стрима
+   * Возвращает null если микрофон недоступен (не выбрасывает ошибку)
    */
-  async initializeAudioStream(profile?: AudioProfileName): Promise<MediaStream> {
+  async initializeAudioStream(profile?: AudioProfileName): Promise<MediaStream | null> {
     try {
       if (profile) {
         this.activeAudioProfile = profile;
@@ -144,6 +169,7 @@ export class WebrtcService {
       });
 
       this.localAudioStream$.next(stream);
+      this.microphoneStatus$.next('granted');
       const audioTrack = stream.getAudioTracks()[0];
       this.debugLog('Local audio stream initialized', {
         label: audioTrack?.label,
@@ -151,10 +177,28 @@ export class WebrtcService {
         constraints: audioTrack?.getConstraints(),
       });
       return stream;
-    } catch (error) {
-      console.error('[WebRTC Debug] Error initializing audio stream:', error);
-      throw new Error('Не удалось получить доступ к микрофону');
+    } catch (error: any) {
+      console.warn('[WebRTC] Could not initialize audio stream:', error?.name, error?.message);
+      
+      // Определяем причину ошибки
+      if (error?.name === 'NotAllowedError' || error?.name === 'PermissionDeniedError') {
+        this.microphoneStatus$.next('denied');
+      } else if (error?.name === 'NotFoundError' || error?.name === 'DevicesNotFoundError') {
+        this.microphoneStatus$.next('not-found');
+      } else {
+        this.microphoneStatus$.next('denied');
+      }
+      
+      return null;
     }
+  }
+
+  /**
+   * Повторная попытка получить доступ к микрофону
+   */
+  async retryMicrophoneAccess(): Promise<MediaStream | null> {
+    this.microphoneStatus$.next('pending');
+    return this.initializeAudioStream();
   }
 
   /**
@@ -202,7 +246,10 @@ export class WebrtcService {
   /**
    * Начало демонстрации экрана с поддержкой высокого качества
    */
-  async startScreenShare(quality?: ScreenShareQuality): Promise<MediaStream> {
+  async startScreenShare(
+    quality?: ScreenShareQuality,
+    sourceId?: string
+  ): Promise<MediaStream> {
     try {
       const selectedProfile = quality ?? this.activeScreenShareProfile;
       const profile = this.getScreenShareProfile(selectedProfile);
@@ -219,7 +266,9 @@ export class WebrtcService {
         audio: this.buildScreenShareAudioConstraints(),
       };
 
-      const stream = await navigator.mediaDevices.getDisplayMedia(constraints);
+      const stream = this.electronService.isElectronApp()
+        ? await this.startElectronScreenCapture(profile, sourceId)
+        : await navigator.mediaDevices.getDisplayMedia(constraints);
       const videoTrack = stream.getVideoTracks()[0];
       if (videoTrack) {
         await this.applyScreenTrackConstraints(videoTrack, profile);
@@ -244,6 +293,66 @@ export class WebrtcService {
       console.error('[WebRTC Debug] Error starting screen share:', error);
       throw new Error('Не удалось начать демонстрацию экрана');
     }
+  }
+
+  private async startElectronScreenCapture(
+    profile: ReturnType<WebrtcService['getScreenShareProfile']>,
+    sourceId?: string
+  ): Promise<MediaStream> {
+    if (!sourceId) {
+      throw new Error('Источник экрана не выбран');
+    }
+
+    try {
+      return await navigator.mediaDevices.getUserMedia(
+        this.buildElectronMediaConstraints(profile, sourceId, true)
+      );
+    } catch (error) {
+      console.warn(
+        '[WebRTC] Electron capture with audio failed, retrying without audio',
+        error
+      );
+      return navigator.mediaDevices.getUserMedia(
+        this.buildElectronMediaConstraints(profile, sourceId, false)
+      );
+    }
+  }
+
+  private buildElectronMediaConstraints(
+    profile: ReturnType<WebrtcService['getScreenShareProfile']>,
+    sourceId: string,
+    includeAudio: boolean
+  ): MediaStreamConstraints {
+    const videoConstraints: ChromeDesktopVideoConstraint = {
+      mandatory: {
+        chromeMediaSource: 'desktop',
+        chromeMediaSourceId: sourceId,
+        maxFrameRate: profile.frameRate,
+        maxWidth: profile.width,
+        maxHeight: profile.height,
+      },
+    };
+
+    const constraints: MediaStreamConstraints = {
+      video: videoConstraints,
+    };
+
+    if (includeAudio) {
+      const audioConstraints: ChromeDesktopAudioConstraint = {
+        mandatory: {
+          chromeMediaSource: 'desktop',
+          chromeMediaSourceId: sourceId,
+        },
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      };
+      constraints.audio = audioConstraints;
+    } else {
+      constraints.audio = false;
+    }
+
+    return constraints;
   }
 
   /**
@@ -544,6 +653,7 @@ export class WebrtcService {
     this.localScreenStream$.next(null);
     this.isMuted$.next(false);
     this.isScreenSharing$.next(false);
+    this.microphoneStatus$.next('pending');
 
     console.log('[WebRTC] All connections cleaned up');
   }
@@ -718,6 +828,14 @@ export class WebrtcService {
 
   get selectedAudioOutputId() {
     return this.selectedAudioOutputId$.asObservable();
+  }
+
+  get microphoneStatus() {
+    return this.microphoneStatus$.asObservable();
+  }
+
+  getMicrophoneStatusValue(): MicrophoneStatus {
+    return this.microphoneStatus$.value;
   }
 
   getPeerConnections(): Map<string, PeerConnectionData> {
