@@ -1,0 +1,149 @@
+<div class="space-y-8 animate-fade-in pb-4">
+  <!-- Devices Selection -->
+  <div class="bg-white/2 border border-white/5 rounded-2xl p-5">
+    <h3 class="text-xl font-semibold text-white/90 -tracking-[.01em] mb-6 flex items-center gap-2">
+      Устройства ввода и вывода
+    </h3>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <!-- Input Device -->
+      <div class="flex flex-col gap-3">
+        <label class="text-xs font-medium text-white/50 tracking-[-.01em] uppercase ml-1">Устройство ввода (Микрофон)</label>
+        <app-custom-select
+          [options]="audioInputOptions"
+          [(value)]="selectedInputId"
+          (valueChange)="onInputDeviceChange($event)"
+          [icon]="Mic"
+          class="w-full block relative z-20"
+        >
+        </app-custom-select>
+      </div>
+
+      <!-- Output Device -->
+      <div class="flex flex-col gap-3">
+        <label class="text-xs font-medium text-white/50 tracking-normal uppercase ml-1">Устройство вывода (Динамики)</label>
+        <app-custom-select
+          [options]="audioOutputOptions"
+          [(value)]="selectedOutputId"
+          (valueChange)="onOutputDeviceChange($event)"
+          [icon]="RadioIcon"
+          class="w-full block relative z-10"
+        >
+        </app-custom-select>
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-white/3 border border-white/5 rounded-2xl overflow-hidden">
+    <!-- Noise Suppression -->
+    <div
+      class="p-5.5 flex items-start gap-5 border-b border-white/5 hover:bg-white/1 transition-colors group"
+    >
+      <!-- Icon -->
+      <div
+        class="size-10 rounded-[10px] bg-violet-500/10 flex items-center justify-center text-violet-400 shrink-0 group-hover:scale-105 transition-transform duration-300"
+      >
+        <lucide-icon [img]="Mic" [size]="21"></lucide-icon>
+      </div>
+
+      <div class="flex-1 min-w-0 pt-1">
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-2">
+            <h3 class="text-lg font-medium text-white">Шумоподавление</h3>
+            @if (settings.noiseSuppression) {
+            <span
+              class="px-2 py-1 rounded-full text-[10px] tracking-wide font-medium bg-violet-200/15 text-violet-300 border border-violet-200/10 uppercase"
+              >Активно</span
+            >
+            }
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              [(ngModel)]="settings.noiseSuppression"
+              (change)="updateSettings()"
+              class="sr-only peer"
+            />
+            <div
+              class="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-500 hover:opacity-90 peer-checked:hover:opacity-100 transition-opacity"
+            ></div>
+          </label>
+        </div>
+        <p class="text-sm text-white/40 leading-relaxed max-w-xl">
+          Автоматически фильтрует фоновые шумы, такие как стук клавиш, работа вентилятора или шум
+          улицы, делая ваш голос чище.
+        </p>
+        <div class="mt-3 flex items-center gap-4">
+          <div
+            class="flex items-center gap-1.5 text-xs text-white/30 hover:text-white/50 transition-colors cursor-help"
+            [appTooltip]="'Использует алгоритмы WebRTC для анализа и удаления стационарных шумов'"
+            tooltipPosition="bottom"
+          >
+            <lucide-icon [img]="Info" [size]="14"></lucide-icon>
+            <span>Как это работает?</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Echo Cancellation -->
+    <div class="p-5.5 flex items-start gap-5 hover:bg-white/1 transition-colors group">
+      <!-- Icon -->
+      <div
+        class="size-10 rounded-[10px] bg-blue-500/10 flex items-center justify-center text-blue-400 shrink-0 group-hover:scale-105 transition-transform duration-300"
+      >
+        <lucide-icon [img]="Radio" [size]="21"></lucide-icon>
+      </div>
+
+      <div class="flex-1 min-w-0 pt-1">
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-2">
+            <h3 class="text-lg font-medium text-white">Эхоподавление</h3>
+            @if (settings.echoCancellation) {
+            <span
+              class="px-2 py-1 rounded-full text-[10px] tracking-wide font-medium bg-violet-200/15 text-violet-300 border border-violet-200/10 uppercase"
+              >Активно</span
+            >
+            }
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              [(ngModel)]="settings.echoCancellation"
+              (change)="updateSettings()"
+              class="sr-only peer"
+            />
+            <div
+              class="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-500 hover:opacity-90 peer-checked:hover:opacity-100 transition-opacity"
+            ></div>
+          </label>
+        </div>
+        <p class="text-sm text-white/40 leading-relaxed max-w-xl">
+          Предотвращает попадание звука из ваших динамиков обратно в микрофон, устраняя неприятное
+          эхо для собеседников.
+        </p>
+        <div class="mt-3 flex items-center gap-4">
+          <div
+            class="flex items-center gap-1.5 text-xs text-white/30 hover:text-white/50 transition-colors cursor-help"
+            [appTooltip]="'Критически важно при использовании колонок вместо наушников'"
+            tooltipPosition="bottom"
+          >
+            <lucide-icon [img]="Info" [size]="14"></lucide-icon>
+            <span>Рекомендация</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Info Block -->
+  <div class="bg-violet-500/5 border border-violet-500/10 rounded-xl p-4 flex gap-4 items-start">
+    <div class="text-violet-400 shrink-0 mt-0.5">
+      <lucide-icon [img]="Info" [size]="20"></lucide-icon>
+    </div>
+    <div class="text-sm text-violet-200/70 leading-relaxed">
+      Изменения настроек применяются мгновенно. Если вы испытываете проблемы со звуком, попробуйте
+      отключить шумоподавление, так как в некоторых случаях оно может "съедать" окончания слов.
+    </div>
+  </div>
+</div>

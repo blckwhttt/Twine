@@ -1,0 +1,229 @@
+@if (currentUser$ | async; as user) {
+<div class="space-y-8 animate-fade-in">
+
+  <!-- Profile card -->
+  <section class="flex justify-between gap-10 bg-white/3 border border-white/5 rounded-2xl p-6">
+    <div class="flex items-start gap-8 min-w-0 max-w-full">
+      <app-avatar [src]="resolveAvatar(user)" [name]="getDisplayName(user)" [alt]="'Текущий аватар'" sizeClass="size-30"
+        fontSizeClass="text-3xl" placeholderClass="bg-black/40 backdrop-blur-xl text-white/80 font-semibold"
+        [showDecoration]="true" [decorationSrc]="user?.decorationUrl"></app-avatar>
+
+    <div class="flex flex-col min-w-0 flex-1 max-w-full">
+       <p class="text-xs uppercase tracking-wide text-white/30 mb-2.5">Моя карточка</p>
+        <div class="flex items-center gap-3 max-w-full min-w-0">
+            <div
+            #displayNameInput
+            [attr.contenteditable]="isEditingDisplayName"
+            (input)="onDisplayNameChange($event)"
+            (blur)="onDisplayNameBlur(user)"
+            role="textbox"
+            class="text-2xl lg:text-3xl font-semibold text-white outline-none border-b border-transparent focus:border-white/50 transition-colors whitespace-nowrap overflow-hidden max-w-full min-w-0"
+            [class.text-ellipsis]="!isEditingDisplayName"
+          >
+              {{ getDisplayName(user) }}
+            </div>
+          <button
+            type="button"
+            (click)="isEditingDisplayName ? saveDisplayName(user) : enableDisplayNameEdit(user)"
+            [disabled]="isDisplayNameSaving || (isEditingDisplayName && !hasDisplayNameChanged(user))"
+            class="p-2 rounded-lg text-white/50 hover:text-white/80 hover:bg-white/5 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            [attr.aria-label]="isEditingDisplayName ? 'Сохранить имя' : 'Редактировать имя'"
+          >
+            <lucide-icon 
+              [img]="isEditingDisplayName && hasDisplayNameChanged(user) ? Check : Pencil" 
+              [size]="18"
+            ></lucide-icon>
+          </button>
+        </div>
+        <p class="text-white/40 text-base mt-2 flex items-center gap-2">
+          <lucide-icon [img]="UserRound" [size]="16"></lucide-icon>
+          @{{ user?.username }}
+        </p>
+
+      @if (statusMessage) {
+      <div class="flex items-center gap-2 text-sm" [ngClass]="{
+          'text-violet-200': uploadState === 'success',
+          'text-amber-200': uploadState === 'uploading',
+          'text-rose-200': uploadState === 'error'
+        }">
+        <div class="size-2 rounded-full" [ngClass]="{
+            'bg-violet-300 shadow shadow-violet-500/30': uploadState === 'success',
+            'bg-amber-300 shadow shadow-amber-500/30': uploadState === 'uploading',
+            'bg-rose-300 shadow shadow-rose-500/30': uploadState === 'error'
+          }"></div>
+        <span class="text-white/80">{{ statusMessage }}</span>
+      </div>
+      }
+    </div>
+  </div>
+
+
+    <div class="flex flex-col items-end gap-2 shrink-0">
+      <div class="relative" #decorationsTrigger>
+        <button type="button" (click)="toggleDecorationsPanel()"
+          class="px-3.5 py-2 rounded-full border border-white/10 bg-white/5 text-white/70 hover:text-white/90 hover:border-violet-400/40 transition-all flex items-center gap-2 text-sm font-medium"
+          [attr.aria-expanded]="isDecorationsPanelOpen">
+          <lucide-icon [img]="Sparkles" [size]="16" class="text-violet-300"></lucide-icon>
+          Выбрать украшение
+          <lucide-icon [img]="ChevronDown" [size]="14" class="transition-transform duration-200"
+            [class.rotate-180]="isDecorationsPanelOpen"></lucide-icon>
+        </button>
+        <div
+          class="decorations-panel absolute z-30 w-[280px] sm:w-[700px] top-0 left-1/2 -translate-x-1/2 sm:left-auto sm:right-full sm:translate-x-0 sm:mr-3 sm:-mt-4"
+          [class.is-open]="isDecorationsPanelOpen" [class.is-closed]="!isDecorationsPanelOpen" role="dialog"
+          aria-label="Список украшений">
+          <div class="rounded-3xl bg-(--bg-dark) p-5">
+            <div class="flex items-center gap-2 mb-5">
+              <lucide-icon [img]="Sparkles" [size]="16" class="text-violet-300"></lucide-icon>
+              <h3 class="font-medium text-white/90">Украшения аватара</h3>
+            </div>
+
+            @if (isDecorationsLoading) {
+            <div class="flex flex-col items-center justify-center gap-2 py-6 text-white/60">
+              <lucide-icon [img]="Loader2" [size]="28" class="animate-spin text-violet-200"></lucide-icon>
+              <p class="text-xs text-white/40">Подгружаем коллекцию...</p>
+            </div>
+            } @else if (decorationsError) {
+            <div class="flex flex-col items-center gap-2 text-center">
+              <p class="text-sm text-rose-200">{{ decorationsError }}</p>
+              <button type="button"
+                class="text-xs text-violet-200 hover:text-violet-100 underline underline-offset-4 transition-colors"
+                (click)="refreshDecorations()">
+                Повторить
+              </button>
+            </div>
+            } @else {
+            <div class="flex flex-wrap gap-3 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
+              <button type="button"
+                class="flex flex-col items-center justify-between rounded-[14px] w-[150px] border py-[18px] px-[14px] relative transition-colors overflow-hidden"
+                [class.border-transparent]="!isDecorationActive(null, user)"
+                [class.bg-white/5]="!isDecorationActive(null, user)"
+                [class.hover:bg-white/9]="!isDecorationActive(null, user)"
+                [class.border-violet-500/60]="isDecorationActive(null, user)"
+                [class.bg-violet-400/10]="isDecorationActive(null, user)" (click)="selectDecoration(null, user)"
+                [disabled]="isDecorationUpdating">
+                <div class="flex flex-col items-center gap-5 max-w-full w-full">
+                  <app-avatar [src]="resolveAvatar(user)" [name]="getDisplayName(user)" [alt]="'Без украшения'"
+                    sizeClass="size-26" fontSizeClass="text-base"
+                    placeholderClass="bg-black/40 backdrop-blur-xl text-white/80 font-semibold"></app-avatar>
+                  <p
+                    class="text-sm font-normal -tracking-[.01em] text-white/50 truncate max-w-full w-full">
+                    Без
+                    украшения</p>
+                </div>
+                @if (isDecorationActive(null, user)) {
+                <lucide-icon [img]="Check" [size]="16"
+                  class="text-violet-400 absolute top-1 right-1 z-5"></lucide-icon>
+                }
+              </button>
+
+              @for (decoration of decorations; track decoration.id) {
+              <button type="button"
+                class="flex flex-col items-center justify-between rounded-[14px] w-[150px] border py-[18px] px-[14px] relative transition-colors overflow-hidden"
+                [class.border-transparent]="!isDecorationActive(decoration.fileUrl, user)"
+                [class.bg-white/5]="!isDecorationActive(decoration.fileUrl, user)"
+                [class.hover:bg-white/9]="!isDecorationActive(decoration.fileUrl, user)"
+                [class.border-violet-500/60]="isDecorationActive(decoration.fileUrl, user)"
+                [class.bg-violet-400/10]="isDecorationActive(decoration.fileUrl, user)"
+                (click)="selectDecoration(decoration, user)" [disabled]="isDecorationUpdating">
+                <div class="flex flex-col items-center gap-5 max-w-full w-full">
+                  <app-avatar [src]="resolveAvatar(user)" [name]="getDisplayName(user)" [alt]="decoration.name"
+                    sizeClass="size-26" fontSizeClass="text-base"
+                    placeholderClass="bg-black/40 backdrop-blur-xl text-white/80 font-semibold"
+                    [showDecoration]="true" [decorationSrc]="decoration.fileUrl"></app-avatar>
+                  <p
+                    class="text-sm -tracking-[.01em] font-medium text-white/90 truncate max-w-full w-full">
+                    {{
+                    decoration.name }}</p>
+                </div>
+                @if (isDecorationActive(decoration.fileUrl, user)) {
+                <lucide-icon [img]="Check" [size]="16"
+                  class="text-violet-400 absolute top-1 right-1 z-5"></lucide-icon>
+                }
+              </button>
+              }
+            </div>
+            }
+
+            @if (decorationUpdateError) {
+            <p class="text-xs text-rose-200/80">{{ decorationUpdateError }}</p>
+            }
+          </div>
+        </div>
+      </div>
+
+      <button type="button" (click)="triggerFileDialog()"
+        class="flex items-center gap-2 px-4 py-2 rounded-full bg-violet-500/10 text-violet-200 font-medium border border-violet-500/20 hover:border-violet-400/60 hover:text-white transition-all text-sm">
+        <lucide-icon [img]="UploadCloud" [size]="16" class="text-violet-200"></lucide-icon>
+        Сменить аватар
+      </button>
+    </div>
+  </section>
+
+    <section
+      class="shrink-0 rounded-3xl border-2 border-dashed border-white/10 bg-black/30 backdrop-blur-xl p-7 relative overflow-hidden w-full text-center transition-all flex flex-col items-center justify-center gap-4"
+      [class.border-violet-500/50]="isDragging" [class.bg-violet-500/5]="isDragging" (dragover)="onDragOver($event)"
+      (dragleave)="onDragLeave($event)" (drop)="onDrop($event)">
+      <input #fileInput type="file" class="hidden" [accept]="acceptAttr" (change)="onFileInputChange($event)" />
+      <div
+        class="size-16 rounded-2xl bg-violet-500/10 text-violet-300 flex items-center justify-center border border-violet-500/20">
+        <lucide-icon [img]="UploadCloud" [size]="28"></lucide-icon>
+      </div>
+      <div class="space-y-2">
+        <p class="font-medium text-white/70">Вы можете загрузить аватар перетащив файл сюда</p>
+      </div>
+      <div class="text-xs text-white/30 space-y-1">
+        <p>Форматы: {{ getAllowedFormatsLabel() }}</p>
+        <p>Размер до 5 МБ</p>
+      </div>
+    </section>
+
+  <!-- Info blocks -->
+  <section class="grid gap-4 md:grid-cols-2">
+    <div class="bg-violet-500/5 border border-violet-500/20 rounded-2xl text-sm p-5 flex gap-4">
+      <div>
+        <div class="text-violet-400 bg-violet-500/5 rounded-xl p-2 shrink-0">
+          <lucide-icon [img]="Sparkles" [size]="18"></lucide-icon>
+        </div>
+      </div>
+      <div class="text-violet-50/80 space-y-2">
+        <p class="font-medium text-white">Актуальные форматы</p>
+        <p>
+          Мы храним изображения в оригинальном виде: AVIF и WEBP для максимального качества, GIF для
+          анимированных аватаров, а также классические PNG/JPG/HEIC.
+        </p>
+      </div>
+    </div>
+    <div class="bg-white/2 border border-white/5 rounded-2xl p-5 text-sm text-white/70 flex gap-4">
+      <div>
+        <div class="text-emerald-300 bg-emerald-500/5 rounded-xl p-2 shrink-0">
+          <lucide-icon [img]="Shield" [size]="18"></lucide-icon>
+        </div>
+      </div>
+      <div class="text-violet-50/80 space-y-2">
+        <p class="font-medium text-white">Как мы защищаем загрузки</p>
+        <p>
+          Проверяем сигнатуры через file-type, чтобы исключить подмену расширений.
+          Файлы попадают в приватное хранилище с правами 600.
+          Статические ссылки идут только из /uploads с CORP заголовком.
+        </p>
+      </div>
+    </div>
+
+
+    <div class="rounded-2xl border border-white/5 bg-white/3 p-4 text-sm flex items-start gap-3">
+      <div class="text-violet-300 bg-violet-500/5 rounded-xl p-2 shrink-0">
+        <lucide-icon [img]="Clock" [size]="18"></lucide-icon>
+      </div>
+      <div>
+        <p class="text-white font-medium">Лимит загрузок</p>
+        <p class="text-white/60 mt-1">Максимум 15 обновлений аватара в час.</p>
+      </div>
+    </div>
+  </section>
+</div>
+} @else {
+<div class="bg-white/2 border border-white/5 rounded-2xl p-8 text-center text-white/50">
+  Загружаем профиль...
+</div>
+}

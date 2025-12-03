@@ -1,0 +1,43 @@
+:host {
+  display: block;
+}
+
+.decorations-panel {
+  opacity: 0;
+  pointer-events: none;
+  transform-origin: top right;
+  transform: scale(0.96);
+  transition:
+    opacity 180ms ease,
+    transform 200ms ease;
+
+  &.is-open {
+    opacity: 1;
+    pointer-events: auto;
+    transform: scale(1);
+  }
+
+  &.is-closed {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 9999px;
+  }
+}
+

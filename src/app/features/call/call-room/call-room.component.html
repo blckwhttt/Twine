@@ -1,0 +1,578 @@
+<!-- Notifications -->
+<app-notification [show]="showCopyNotification" type="success" title="Успешно"
+  message="Ссылка на комнату скопирована в буфер обмена" (closed)="onCopyNotificationClosed()"></app-notification>
+
+<!-- Leave Confirmation Modal -->
+<app-modal [isOpen]="showLeaveModal" heading="Покинуть комнату?" (closed)="closeLeaveModal()">
+  <p class="text-slate-300 mb-4">Вы уверены, что хотите покинуть эту комнату? Все активные соединения будут завершены.
+  </p>
+
+  <div slot="footer">
+    <app-button variant="secondary" size="md" (clicked)="closeLeaveModal()">
+      Отмена
+    </app-button>
+    <app-button variant="danger" size="md" (clicked)="leaveRoom()">
+      Покинуть
+    </app-button>
+  </div>
+</app-modal>
+
+<!-- Screen Share Quality Modal -->
+<app-modal [isOpen]="showScreenShareModal" heading="Выберите качество демонстрации" (closed)="closeScreenShareModal()">
+  <div class="flex flex-col gap-3 p-1">
+    @for (option of screenShareOptions; track option.id) {
+    <button type="button" (click)="selectScreenShareQuality(option.id)"
+      class="group w-full relative overflow-hidden rounded-2xl border p-4 text-left transition-all duration-200"
+      [class.border-violet-500/50]="option.id === selectedScreenShareQuality"
+      [class.bg-violet-500/10]="option.id === selectedScreenShareQuality"
+      [class.shadow-[0_0_20px_-5px_rgba(139,92,246,0.3)]]="option.id === selectedScreenShareQuality"
+      [class.border-white/5]="option.id !== selectedScreenShareQuality"
+      [class.bg-white/3]="option.id !== selectedScreenShareQuality"
+      [class.hover:border-white/10]="option.id !== selectedScreenShareQuality"
+      [class.hover:bg-white/6]="option.id !== selectedScreenShareQuality"
+      [class.hover:scale-[1.01]]="true"
+      [class.active:scale-[0.99]]="true">
+      
+      <!-- Selection Glow -->
+      @if (option.id === selectedScreenShareQuality) {
+        <div class="absolute inset-0 bg-violet-500/5 blur-xl"></div>
+      }
+
+      <div class="relative flex items-center gap-4 z-10">
+        <!-- Icon Block -->
+        <div class="size-12 rounded-xl flex items-center justify-center shrink-0 transition-all duration-200"
+             [class.bg-violet-500/20]="option.id === selectedScreenShareQuality" 
+             [class.text-violet-400]="option.id === selectedScreenShareQuality"
+             [class.bg-white/5]="option.id !== selectedScreenShareQuality" 
+             [class.text-white/30]="option.id !== selectedScreenShareQuality"
+             [class.group-hover:bg-white/10]="option.id !== selectedScreenShareQuality"
+             [class.group-hover:text-white/50]="option.id !== selectedScreenShareQuality">
+             <lucide-icon [img]="Monitor" [size]="24"></lucide-icon>
+        </div>
+
+        <!-- Info Block -->
+        <div class="flex flex-col gap-1.5 flex-1 min-w-0">
+          <div class="flex items-center gap-2.5">
+            <span class="font-semibold tracking-wide text-[15px] transition-colors"
+              [class.text-violet-300]="option.id === selectedScreenShareQuality"
+              [class.text-white/90]="option.id !== selectedScreenShareQuality"
+              >
+              {{ option.label }}
+            </span>
+            @if (option.id === selectedScreenShareQuality) {
+              <lucide-icon [img]="Check" [size]="13" class="text-violet-300"></lucide-icon>
+            }
+          </div>
+          <span class="text-[13px] transition-colors"
+            [class.text-violet-200/70]="option.id === selectedScreenShareQuality"
+            [class.text-white/50]="option.id !== selectedScreenShareQuality"
+            >
+            {{ option.description }}
+          </span>
+        </div>
+        
+        <!-- Stats Block -->
+        <div class="flex flex-col items-end gap-2 shrink-0">
+           <div class="flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-lg border transition-colors w-full justify-end"
+                [class.bg-violet-500/10]="option.id === selectedScreenShareQuality"
+                [class.border-violet-500/20]="option.id === selectedScreenShareQuality"
+                [class.text-violet-200]="option.id === selectedScreenShareQuality"
+                [class.bg-black/20]="option.id !== selectedScreenShareQuality"
+                [class.border-white/10]="option.id !== selectedScreenShareQuality"
+                [class.text-white/60]="option.id !== selectedScreenShareQuality"
+              >
+            <lucide-icon [img]="Maximize" [size]="12" class="opacity-70"></lucide-icon>
+            <span>{{ option.width }}×{{ option.height }}</span>
+          </div>
+          
+          <div class="flex items-center gap-1.5 text-[11px] font-medium px-2 py-1 rounded-full border transition-colors justify-end"
+                [class.bg-violet-500/10]="option.id === selectedScreenShareQuality"
+                [class.border-violet-500/20]="option.id === selectedScreenShareQuality"
+                [class.text-violet-200/80]="option.id === selectedScreenShareQuality"
+                [class.bg-black/20]="option.id !== selectedScreenShareQuality"
+                [class.border-transparent]="option.id !== selectedScreenShareQuality"
+                [class.bg-white/5]="option.id !== selectedScreenShareQuality"
+                [class.text-white/50]="option.id !== selectedScreenShareQuality"
+                >
+            <span>{{ option.frameRate }} FPS</span>
+          </div>
+        </div>
+      </div>
+    </button>
+    }
+  </div>
+  <div slot="footer">
+    <app-button variant="secondary" size="md" (clicked)="closeScreenShareModal()">
+      Отмена
+    </app-button>
+  </div>
+</app-modal>
+
+<!-- Participant Context Menu -->
+<app-context-menu [isOpen]="showParticipantContextMenu" [position]="participantContextMenuPosition"
+  [items]="participantContextMenuItems" (closed)="closeParticipantContextMenu()"
+  (itemClicked)="onParticipantContextMenuItemClick($event)"
+  (sliderChanged)="onParticipantVolumeChange($event)"></app-context-menu>
+
+<!-- Loading State -->
+@if (isLoading) {
+<app-loading-spinner [fullScreen]="true" size="lg" message="Подключение к комнате..."></app-loading-spinner>
+}
+
+<!-- Error Banner -->
+@if (error) {
+<div class="fixed top-6 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
+  <div class="bg-red-300/10 backdrop-blur-md border border-red-500/20 rounded-xl py-2.5 px-3.5 shadow-2xl shadow-black/50 flex items-center gap-3">
+    <lucide-icon [img]="X" [size]="14" class="text-red-400/90"></lucide-icon>
+    <p class="text-[13px] font-medium text-white/90">{{ error }}</p>
+  </div>
+</div>
+}
+
+@if (audioAutoplayBlocked) {
+<div class="fixed top-4 left-1/2 -translate-x-1/2 z-40 max-w-lg w-full mx-4">
+  <div
+    class="bg-amber-900/90 backdrop-blur-xl border border-amber-600/70 rounded-xl p-4 shadow-2xl flex items-start gap-3">
+    <lucide-icon [img]="VolumeX" [size]="24" class="text-amber-300 shrink-0"></lucide-icon>
+    <div class="text-sm text-white/90">
+      <p class="font-semibold">Браузер заблокировал автоматическое воспроизведение звука.</p>
+      <p class="text-white/70 mt-1">Кликните по странице или нажмите любую клавишу, чтобы включить звук участников.</p>
+    </div>
+  </div>
+</div>
+}
+
+<!-- Main Call Room -->
+@if (!isLoading) {
+<!-- Начало правильной верстки -->
+<div class="h-screen bg-[#131216] p-[12px] gap-[8px] flex justify-start items-stretch">
+  <!-- Sidebar с участниками -->
+  <aside class="w-[307px] rounded-[14px] bg-black/40 px-[23px] py-[24px] flex flex-col relative">
+    <div class="mb-[28px] select-none logo-with-animation cursor-pointer">
+      <app-logo [size]="38" wrapperClass="gap-[14px]"></app-logo>
+    </div>
+    <div class="flex flex-col gap-[18px]">
+      <div class="flex items-center gap-[13px] font-bold">
+        <h2 class="text-[22px] text-white/70">Участники комнаты</h2>
+        <span class="text-[20px] text-white/35">{{ participants.length }}</span>
+      </div>
+      <div class="flex flex-col gap-[24px] items-start w-full">
+        @for (participant of participants; track participant.id) {
+        <div
+          class="flex items-center gap-[15px] rounded-2xl px-2.5 py-2 -mx-2 transition-colors hover:bg-white/5 cursor-pointer w-full max-w-full"
+          (contextmenu)="openParticipantContextMenu($event, participant)">
+          <app-avatar [src]="resolveAvatarUrl(participant.avatarUrl)" [name]="participant.username || ''"
+              [alt]="participant.username || ''" sizeClass="size-[44px]" fontSizeClass="text-lg" [showDecoration]="true"
+              [decorationSrc]="resolveDecorationUrl(participant.decorationUrl)"></app-avatar>
+          <div class="flex flex-col gap-[4px] items-start flex-1 min-w-0 max-w-full overflow-hidden relative">
+            <div class="flex items-center gap-[10px] w-full">
+              <p class="text-[17px] font-semibold text-white/90 text-ellipsis overflow-hidden whitespace-nowrap">{{ participant.displayName }}</p>
+              <div class="flex items-center gap-[2px] shrink-0">
+                @if (!isParticipantMuted(participant)) {
+                } @else {
+                  <svg class="size-[14px] text-slate-200/50" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                      <mask [id]="'micMuteMask-' + participant.id">
+                        <rect width="100%" height="100%" fill="white"/>
+                        <line x1="18" y1="0" x2="2" y2="16" stroke="black" stroke-width="6" stroke-linecap="round"/>
+                      </mask>
+                    </defs>
+                    <g [attr.mask]="'url(#micMuteMask-' + participant.id + ')'">
+                      <path d="M10,12c-2.2,0-4-1.8-4-4V4c0-2.2,1.8-4,4-4h0c2.2,0,4,1.8,4,4v4C14,10.2,12.2,12,10,12z"/>
+                      <path d="M17.4,10.1c-0.5-0.3-1.1-0.1-1.4,0.4C14.8,12.7,12.5,14,10,14c-2.5,0-4.8-1.3-6.1-3.5C3.7,10,3,9.9,2.6,10.1c-0.5,0.3-0.6,0.9-0.4,1.4c1.4,2.5,4,4.1,6.8,4.4V18H6c-0.6,0-1,0.4-1,1s0.4,1,1,1h8c0.6,0,1-0.4,1-1s-0.4-1-1-1h-3v-2.1c2.8-0.3,5.4-1.9,6.8-4.4C18.1,11,17.9,10.4,17.4,10.1z"/>
+                    </g>
+                    <line x1="18" y1="0" x2="2" y2="16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                  </svg>
+                }
+              </div>
+            </div>
+            <p class="text-[13px] font-normal text-white/55 text-ellipsis overflow-hidden whitespace-nowrap w-full">
+              @if (isParticipantScreenSharing(participant)) {
+              Демонстрирует экран
+              } @else {
+              Участник
+              }
+            </p>
+          </div>
+        </div>
+        }
+      </div>
+    </div>
+
+    <div class="absolute bottom-4 left-0 right-0 px-2 w-full rounded-[14px]">
+      <!-- full width "me" button, like in discord, with my avatar, nickname, settings button, off micro, off sound, etc. -->
+      <div class="w-full bg-white/5 rounded-[14px] py-[10px] px-[12px] backdrop-blur-sm">
+        <div class="flex items-center gap-[12px]">
+          <div class="size-[43px]">
+            <app-avatar [src]="resolveAvatarUrl(currentUser?.avatarUrl)" [name]="currentUser?.username || ''"
+              [alt]="currentUser?.username || ''" sizeClass="size-[43px]" fontSizeClass="text-lg"
+              [showDecoration]="true" [decorationSrc]="resolveDecorationUrl(currentUser?.decorationUrl)"></app-avatar>
+          </div>
+          <div class="flex flex-col min-w-0 flex-1">
+            <div class="flex items-center justify-between w-full">
+              <span class="font-bold text-white/90 truncate text-sm block">{{ currentUser?.displayName ||
+                currentUser?.username }}</span>
+            </div>
+            <div class="flex items-center justify-between w-full">
+              <span class="text-xs text-white/40 truncate block">В сети</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-1">
+            <button (click)="openSettingsModal()"
+              class="p-1.5 rounded-lg hover:bg-white/10 text-white/60 hover:text-white transition-colors">
+              <lucide-icon [img]="Settings" [size]="16"></lucide-icon>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="flex-1 bg-black/40 rounded-[14px] flex flex-col overflow-hidden relative h-full">
+    <!-- Header with Room Info -->
+    <div class="flex items-center gap-[16px] shrink-0 px-[23px] pt-[24px]">
+      <h2 class="text-[22px] text-violet-300/80">Комната</h2>
+      <div class="flex items-center gap-[10px]">
+        <button (click)="copyRoomLink()"
+          class="size-[30px] rounded-[10px] text-white/50 bg-white/5 flex items-center justify-center transition-colors hover:bg-white/10 hover:text-white/90"
+          [appTooltip]="'Скопировать ссылку на комнату'" tooltipPosition="right">
+          <lucide-icon [img]="Link" [size]="14"></lucide-icon>
+        </button>
+        <button (click)="confirmLeaveRoom()"
+          class="size-[30px] rounded-[10px] bg-red-400/10 text-red-400/70 flex items-center justify-center transition-colors hover:bg-red-400/20 hover:text-red-400/90"
+          [appTooltip]="'Покинуть комнату'" tooltipPosition="right">
+          <lucide-icon [img]="LogOut" [size]="14"></lucide-icon>
+        </button>
+      </div>
+    </div>
+
+    <div class="relative w-full flex flex-col flex-1 min-h-0 mt-4">
+      <div class="flex-1 relative flex flex-col overflow-hidden transition-colors">
+        <!-- Chat Messages Area -->
+        <div #chatContainer
+          class="flex-1 overflow-y-auto px-[23px] pb-[23px] space-y-3 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent hover:scrollbar-thumb-white/20">
+          @for (item of chatGroups; track $index) {
+            @if (isDateSeparator(item)) {
+              <div class="flex items-center gap-4 py-4 select-none">
+                <div class="h-px bg-white/10 flex-1"></div>
+                <span class="text-xs font-medium text-white/40">{{ item.label }}</span>
+                <div class="h-px bg-white/10 flex-1"></div>
+              </div>
+            } @else if (isMessageGroup(item)) {
+              <div class="group flex gap-3 animate-fade-in hover:bg-white/5 -mx-[23px] px-[23px] py-1">
+                <!-- Avatar Placeholder -->
+                <div class="size-10 mt-1 shrink-0">
+                  <app-avatar [src]="resolveAvatarUrl(item.user.avatarUrl)" [name]="item.user.username"
+                    [alt]="item.user.username" sizeClass="size-10" fontSizeClass="text-lg" [showDecoration]="true"
+                    [decorationSrc]="resolveDecorationUrl(item.user.decorationUrl)"></app-avatar>
+                </div>
+    
+                <div class="flex flex-col gap-1 min-w-0 flex-1">
+                  <div class="flex items-baseline gap-2">
+                    <span
+                      class="font-semibold text-white/90 text-[15px] hover:underline cursor-pointer transition-colors">{{
+                      item.user.displayName || item.user.username }}</span>
+                    <span class="text-[11px] text-white/30 font-normal">{{ formatMessageTime(item.createdAt) }}</span>
+                  </div>
+                  
+                  <div class="flex flex-col gap-1">
+                    @for (msg of item.messages; track msg.id) {
+                      <div class="group/msg relative">
+                        <p class="text-white/90 text-[15px] leading-relaxed wrap-break-anywhere whitespace-pre-wrap font-light tracking-wide" [innerHTML]="msg.content | linkify"></p>
+                        
+                        @if (msg.files?.length) {
+                        <div class="flex flex-col gap-2 mt-2">
+                          <!-- Media Grid -->
+                          @if (hasMediaFiles(msg.files)) {
+                          <div class="flex flex-wrap gap-2">
+                            @for (file of msg.files; track $index) {
+                              @if (isImage(file.type)) {
+                                <div class="relative group/media cursor-pointer overflow-hidden rounded-xl max-w-[300px] max-h-[300px]" (click)="openMediaViewer(file.url, file.type, msg.user.displayName || msg.user.username || '', msg.createdAt, file.name)">
+                                    <img [src]="getDownloadUrl(file.url) + '?inline=true'" class="w-full h-full object-cover" loading="lazy">
+                                    <div class="absolute inset-0 bg-black/0 group-hover/media:bg-black/20 transition-colors duration-300 ease-out"></div>
+                                </div>
+                              } @else if (isVideo(file.type)) {
+                                <div class="relative group/media cursor-pointer overflow-hidden rounded-xl max-w-[300px] max-h-[300px]" (click)="openMediaViewer(file.url, file.type, msg.user.displayName || msg.user.username || '', msg.createdAt, file.name)">
+                                    <video [src]="getDownloadUrl(file.url) + '?inline=true'" class="w-full h-full object-cover"></video>
+                                     <div class="absolute inset-0 flex items-center justify-center bg-black/20 group-hover/media:bg-black/10 transition-colors duration-300 ease-out">
+                                        <div class="p-3 pl-4 rounded-full bg-white/20 text-white backdrop-blur-md group-hover/media:bg-white/10 transition-colors duration-300 ease-out">
+                                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="none" class="lucide lucide-play"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                                        </div>
+                                     </div>
+                                </div>
+                              }
+                            }
+                          </div>
+                          }
+          
+                          <!-- Other Files -->
+                          @if (hasOtherFiles(msg.files)) {
+                          <div class="flex flex-wrap gap-2 w-full">
+                            @for (file of msg.files; track $index) {
+                              @if (!isImage(file.type) && !isVideo(file.type)) {
+                              <a title="Нажмите, чтобы скачать файл" aria-label="Нажмите, чтобы скачать файл" role="button" [href]="getDownloadUrl(file.url)" download target="_blank" class="group/file relative flex flex-col items-center gap-2 p-3 rounded-xl bg-white/3 transition-all overflow-hidden min-w-[120px] select-none pointer-events-none">
+                                
+                                <!-- Large Icon with Extension -->
+                                <div class="size-14 bg-violet-500/10 rounded-xl flex items-center justify-center relative">
+                                  <lucide-icon [img]="File" [size]="32" class="text-violet-400"></lucide-icon>
+                                  <span class="absolute text-[10px] font-black text-white bg-violet-600/90 px-1.5 py-0.5 rounded-md shadow-lg translate-y-1 uppercase tracking-wider border border-white/10">
+                                    {{ getFileExtension(file.name) }}
+                                  </span>
+                                </div>
+              
+                                <div class="text-center w-full px-1">
+                                  <p class="text-xs font-medium text-white/90 truncate max-w-[140px]" [title]="file.name">{{ file.name }}</p>
+                                  <p class="text-[10px] text-white/40 mt-0.5 font-medium">{{ formatFileSize(file.size) }}</p>
+                                </div>
+              
+                                <!-- Download Overlay -->
+                                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover/file:opacity-100 flex items-center justify-center transition-all pointer-events-auto">
+                                  <div class="size-10 rounded-full bg-white/10 flex items-center justify-center border border-white/5 shadow-xl translate-y-2 group-hover/file:translate-y-0 transition-all group-active/file:scale-95 text-white/90 cursor-pointer">
+                                    <lucide-icon [img]="Download" [size]="20"></lucide-icon>
+                                  </div>
+                                </div>
+                              </a>
+                              }
+                            }
+                          </div>
+                          }
+                        </div>
+                        }
+                      </div>
+                    }
+                  </div>
+                </div>
+              </div>
+            }
+          } @empty {
+          <div class="h-full flex flex-col items-center justify-center text-white/20 select-none pb-12">
+            <div class="size-16 rounded-2xl bg-white/5 flex items-center justify-center mb-4">
+              <lucide-icon [img]="MessageSquare" [size]="32" class="opacity-50"></lucide-icon>
+            </div>
+            <p class="text-sm font-medium text-white/40">Чат пуст</p>
+            <p class="text-xs text-white/20 mt-1">Начните общение первым</p>
+          </div>
+          }
+        </div>
+
+        <!-- Chat Input Area -->
+        <input type="file" #fileInput class="hidden" multiple (change)="onFileSelected($event)">
+        
+        <div class="p-[14px] px-[20px] border-t border-white/5 mt-auto flex flex-col gap-2">
+          @if (selectedFiles.length) {
+          <div class="flex flex-wrap gap-2 max-h-[150px] overflow-y-auto custom-scrollbar">
+            @for (fileEntry of selectedFiles; track $index) {
+            <div class="flex items-center gap-3 bg-white/5 rounded-xl p-2.5 border border-white/5 animate-fade-in w-fit max-w-full relative group">
+              @if (fileEntry.previewUrl) {
+                <div class="size-10 rounded-lg overflow-hidden shrink-0 bg-black/20 relative">
+                  @if (isImage(fileEntry.file.type)) {
+                     <img [src]="fileEntry.previewUrl" class="w-full h-full object-cover">
+                  } @else {
+                     <video [src]="fileEntry.previewUrl" class="w-full h-full object-cover"></video>
+                  }
+                </div>
+              } @else {
+                <div class="size-10 bg-violet-500/10 rounded-lg flex items-center justify-center shrink-0">
+                  <lucide-icon [img]="File" [size]="20" class="text-violet-400"></lucide-icon>
+                </div>
+              }
+              <div class="flex flex-col min-w-0 mr-2">
+                <span class="text-xs font-medium text-white/90 truncate max-w-[200px]">{{ fileEntry.file.name }}</span>
+                <span class="text-[10px] text-white/40">{{ formatFileSize(fileEntry.file.size) }}</span>
+              </div>
+              
+              @if (fileEntry.uploading) {
+                <lucide-icon [img]="Loader2" [size]="16" class="text-violet-400 animate-spin mx-1"></lucide-icon>
+              } @else if (fileEntry.error) {
+                <lucide-icon [img]="X" [size]="16" class="text-red-400 mx-1"></lucide-icon>
+              } @else {
+                <button (click)="removeSelectedFile($index)" class="size-6 rounded-full hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-red-400 transition-colors">
+                  <lucide-icon [img]="X" [size]="14"></lucide-icon>
+                </button>
+              }
+            </div>
+            }
+          </div>
+          }
+
+          <div
+            class="relative flex items-center bg-white/5 rounded-[14px] h-[52px] border border-transparent transition-all focus-within:border-violet-500/30 focus-within:bg-[#16161f] group">
+            <div class="flex items-center gap-2 mx-2">
+              <button (click)="triggerFileInput()" 
+              class="text-white/40 hover:text-white hover:bg-white/5 p-2 rounded-xl transition-all shrink-0"
+              [class.opacity-50]="selectedFiles.length >= 50"
+              [disabled]="selectedFiles.length >= 50"
+              title="Прикрепить файлы (макс. 50)">
+              <lucide-icon [img]="Paperclip" [size]="20"></lucide-icon>
+            </button>
+            </div>
+
+            <div class="flex-1 min-w-0 relative">
+              <app-chat-input
+                [(ngModel)]="chatInput"
+                (submit)="sendMessage()"
+                placeholder="Написать сообщение..."
+                #chatInputRef>
+              </app-chat-input>
+            </div>
+
+            @if (chatInput.trim() || (selectedFiles.length > 0 && !isUploadingFile)) {
+            <button (click)="sendMessage()"
+              class="text-white/90 hover:text-white transition-colors p-2 rounded-full hover:bg-white/9 bg-white/5 animate-scale-in shrink-0 mr-2"
+              title="Отправить">
+              <lucide-icon [img]="ArrowRight" [size]="18"></lucide-icon>
+            </button>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Controls Overlay -->
+      <div
+        class="absolute bottom-[100px] right-[23px] rounded-[14px] bg-(--bg-dark)/60 backdrop-blur-lg border border-white/3 flex flex-col items-center justify-center gap-[12px] py-[12px] w-[52px] shadow-lg z-10"
+        aria-label="Элементы управления">
+
+        <!-- Микрофон -->
+        <button (click)="toggleMute()" [class.bg-red-500/15]="isMuted" [class.bg-white/5]="!isMuted"
+          [class.text-white/60]="!isMuted"
+          class="size-[34px] rounded-[10px] flex items-center justify-center transition-all hover:scale-105 hover:bg-white/10"
+          [appTooltip]="isMuted ? 'Включить микрофон' : 'Выключить микрофон'" tooltipPosition="left">
+          @if (!isMuted) {
+            <svg class="size-[16px] text-green-500/95" fill="currentColor" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 20 20" enable-background="new 0 0 20 20" xml:space="preserve"><g stroke-width="0"></g><g stroke-linecap="round" stroke-linejoin="round"></g><g> <path d="M10,12L10,12c-2.2,0-4-1.8-4-4V4c0-2.2,1.8-4,4-4h0c2.2,0,4,1.8,4,4v4C14,10.2,12.2,12,10,12z"></path> <path d="M17.4,10.1c-0.5-0.3-1.1-0.1-1.4,0.4C14.8,12.7,12.5,14,10,14c-2.5,0-4.8-1.3-6.1-3.5C3.7,10,3,9.9,2.6,10.1 c-0.5,0.3-0.6,0.9-0.4,1.4c1.4,2.5,4,4.1,6.8,4.4V18H6c-0.6,0-1,0.4-1,1s0.4,1,1,1h8c0.6,0,1-0.4,1-1s-0.4-1-1-1h-3v-2.1 c2.8-0.3,5.4-1.9,6.8-4.4C18.1,11,17.9,10.4,17.4,10.1z"></path> </g></svg>
+          } @else {
+            <svg class="size-[16px] text-red-400" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <mask id="micMuteMask-local-controls">
+                  <rect width="100%" height="100%" fill="white"/>
+                  <line x1="18" y1="0" x2="2" y2="16" stroke="black" stroke-width="6" stroke-linecap="round"/>
+                </mask>
+              </defs>
+              <g mask="url(#micMuteMask-local-controls)">
+                <path d="M10,12c-2.2,0-4-1.8-4-4V4c0-2.2,1.8-4,4-4h0c2.2,0,4,1.8,4,4v4C14,10.2,12.2,12,10,12z"/>
+                <path d="M17.4,10.1c-0.5-0.3-1.1-0.1-1.4,0.4C14.8,12.7,12.5,14,10,14c-2.5,0-4.8-1.3-6.1-3.5C3.7,10,3,9.9,2.6,10.1c-0.5,0.3-0.6,0.9-0.4,1.4c1.4,2.5,4,4.1,6.8,4.4V18H6c-0.6,0-1,0.4-1,1s0.4,1,1,1h8c0.6,0,1-0.4,1-1s-0.4-1-1-1h-3v-2.1c2.8-0.3,5.4-1.9,6.8-4.4C18.1,11,17.9,10.4,17.4,10.1z"/>
+              </g>
+              <line x1="18" y1="0" x2="2" y2="16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          }
+        </button>
+
+        <!-- Звук -->
+        <button (click)="toggleDeafen()" [class.bg-red-500/20]="isDeafened" [class.bg-white/5]="!isDeafened"
+          [class.text-white/60]="!isDeafened"
+          class="size-[34px] rounded-[10px] flex items-center justify-center transition-all hover:scale-105 hover:bg-white/10"
+          [appTooltip]="isDeafened ? 'Включить звук' : 'Выключить звук'" tooltipPosition="left">
+          @if (!isDeafened) {
+          <lucide-icon [img]="Volume2" [size]="18" class="text-emerald-400"></lucide-icon>
+          } @else {
+          <lucide-icon [img]="VolumeX" [size]="18" class="text-red-400"></lucide-icon>
+          }
+        </button>
+
+        <!-- Демонстрация экрана -->
+        <button (click)="handleScreenShareClick()" [class.bg-violet-500/20]="isScreenSharing"
+          [class.bg-white/5]="!isScreenSharing"
+          class="size-[34px] rounded-[10px] flex items-center justify-center transition-all hover:scale-105 hover:bg-white/10"
+          [appTooltip]="isScreenSharing ? 'Остановить демонстрацию экрана' : 'Начать демонстрацию экрана'"
+          tooltipPosition="left">
+          <lucide-icon [img]="Monitor" [size]="18" [class.text-violet-400]="isScreenSharing"
+            [class.text-white/60]="!isScreenSharing"></lucide-icon>
+        </button>
+
+      </div>
+    </div>
+  </main>
+
+  <aside class="w-[315px] rounded-[14px] bg-black/40 px-[23px] py-[24px] flex flex-col gap-[28px]">
+    <div class="flex items-center gap-[13px] font-bold">
+      <h2 class="text-[22px] text-white/70">Демонстрируют экран</h2>
+      @if (screenSharingCount > 0) {
+      <span class="text-[20px] text-white/35">{{ screenSharingCount }}</span>
+      }
+    </div>
+
+    @if (screenSharingCount > 0) {
+    <div class="flex flex-col gap-[26px] items-start overflow-y-auto">
+      <!-- Локальная демонстрация экрана -->
+      @if (isScreenSharing) {
+      <div class="flex flex-col gap-[14px] items-start" aria-label="Нажмите, чтобы посмотреть демонстрацию экрана" role="button" tabindex="0"
+        (click)="openScreenPreview(localScreenStream, currentUser?.username || 'Вы', 'local')">
+        <div
+          class="aspect-video group cursor-pointer w-full h-auto rounded-[14px] overflow-hidden bg-white/10 border-2 border-emerald-600/50 relative">
+          <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity ease-out duration-200 pointer-events-none"></div>
+          <video #localScreenVideo class="size-full object-cover" autoplay playsinline muted></video>
+          <div
+            class="absolute top-2 right-2 bg-emerald-600/90 backdrop-blur-sm px-2 py-1 rounded text-[10px] font-bold text-white uppercase">
+            Вы
+          </div>
+        </div>
+        <p class="text-[15px] font-normal text-white/50">{{ currentUser?.username || 'Вы' }}</p>
+      </div>
+      }
+
+      <!-- Удаленные демонстрации экрана -->
+      @for (peer of remotePeers; track peer.socketId) {
+      @if (peer.isScreenSharing) {
+      <div class="flex flex-col gap-[14px] items-start" aria-label="Нажмите, чтобы посмотреть демонстрацию экрана" role="button" tabindex="0"
+        (click)="openScreenPreview(peer.screenStream, peer.username, peer.socketId)">
+        <div
+          class="aspect-video cursor-pointer w-[243px] h-auto rounded-[12px] overflow-hidden bg-white/10 border-2 border-violet-600/50 relative">
+          <video #remoteScreen [attr.data-peer-id]="peer.socketId" class="size-full object-cover backdrop-blur-sm" autoplay playsinline
+            muted></video>
+          <div
+            class="absolute top-2 right-2 bg-red-600/90 backdrop-blur-sm px-2 py-1 rounded text-[10px] font-bold text-white uppercase animate-pulse">
+            LIVE
+          </div>
+        </div>
+        <p class="text-[15px] font-normal text-white/50">{{ peer.username }}</p>
+      </div>
+      }
+      }
+    </div>
+    } @else {
+    <!-- Пустое состояние -->
+    <div class="flex-1 flex items-center justify-center">
+      <div class="text-center max-w-[200px]">
+        <div class="w-16 h-16 mx-auto mb-4 bg-white/5 rounded-xl flex items-center justify-center">
+          <lucide-icon [img]="Monitor" [size]="32" class="text-white/30"></lucide-icon>
+        </div>
+        <p class="text-sm text-white/40">Никто не демонстрирует экран</p>
+      </div>
+    </div>
+    }
+  </aside>
+
+  <!-- Конец правильной верстки -->
+
+  <!-- Hidden Audio Elements -->
+  <div class="hidden">
+    @for (peer of remotePeers; track peer.socketId) {
+    <audio #remoteAudio [attr.data-peer-id]="peer.socketId" autoplay></audio>
+    }
+  </div>
+</div>
+
+@if (showScreenPreviewModal) {
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm px-4 py-6">
+  <div class="w-full max-w-7xl flex flex-col items-center gap-6">
+    <div class="w-full aspect-video rounded-2xl overflow-hidden bg-black border border-white/10 shadow-2xl">
+      <video #previewVideo class="size-full object-contain bg-black" autoplay playsinline muted></video>
+    </div>
+    <button type="button"
+      class="size-12 rounded-full bg-white/10 text-white/70 flex items-center justify-center hover:bg-white/20 transition-all active:scale-90"
+      (click)="closeScreenPreview()" [appTooltip]="'Закрыть просмотр'" tooltipPosition="bottom">
+      <lucide-icon [img]="X" [size]="20" class="text-white"></lucide-icon>
+    </button>
+  </div>
+</div>
+}
+
+<router-outlet></router-outlet>
+}
+
+<!-- Media Viewer Modal -->
+<app-media-viewer-modal
+  [isOpen]="showMediaViewer"
+  [initialItem]="selectedMediaItem"
+  [galleryItems]="mediaGalleryItems"
+  (closed)="closeMediaViewer()"
+></app-media-viewer-modal>

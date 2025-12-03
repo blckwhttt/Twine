@@ -1,0 +1,101 @@
+{
+  "name": "frontend",
+  "version": "1.0.0",
+  "description": "Общение стало качественным, удобным и бесплатным.",
+  "author": "Hello, it's me",
+  "scripts": {
+    "ng": "ng",
+    "start": "ng serve",
+    "build": "ng build",
+    "watch": "ng build --watch --configuration development",
+    "test": "ng test",
+    "electron:start": "ng build --base-href ./ && electron .",
+    "electron:build": "ng build --base-href ./ && electron-builder",
+    "electron:publish": "dotenv -e .env -- ng build --base-href ./ && electron-builder --publish always"
+  },
+  "prettier": {
+    "printWidth": 100,
+    "singleQuote": true,
+    "overrides": [
+      {
+        "files": "*.html",
+        "options": {
+          "parser": "angular"
+        }
+      }
+    ]
+  },
+  "private": true,
+  "dependencies": {
+    "@angular/common": "^20.3.0",
+    "@angular/compiler": "^20.3.0",
+    "@angular/core": "^20.3.0",
+    "@angular/forms": "^20.3.0",
+    "@angular/platform-browser": "^20.3.0",
+    "@angular/router": "^20.3.0",
+    "@tailwindcss/postcss": "^4.1.17",
+    "@types/webrtc": "^0.0.47",
+    "electron-updater": "^6.6.2",
+    "lucide-angular": "^0.553.0",
+    "rxjs": "~7.8.0",
+    "socket.io-client": "^4.8.1",
+    "swiper": "^12.0.3",
+    "tslib": "^2.3.0",
+    "zone.js": "~0.15.0"
+  },
+  "devDependencies": {
+    "@angular/build": "^20.3.9",
+    "@angular/cli": "^20.3.9",
+    "@angular/compiler-cli": "^20.3.0",
+    "@types/jasmine": "~5.1.0",
+    "autoprefixer": "^10.4.22",
+    "dotenv-cli": "^11.0.0",
+    "electron": "^39.2.4",
+    "electron-builder": "^26.0.12",
+    "jasmine-core": "~5.9.0",
+    "karma": "~6.4.0",
+    "karma-chrome-launcher": "~3.2.0",
+    "karma-coverage": "~2.2.0",
+    "karma-jasmine": "~5.1.0",
+    "karma-jasmine-html-reporter": "~2.1.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.17",
+    "typescript": "~5.9.2"
+  },
+  "main": "main.js",
+  "build": {
+    "appId": "com.helloitsme.app",
+    "productName": "HelloitsmeSetup",
+    "npmRebuild": false,
+    "directories": {
+      "output": "dist_electron"
+    },
+    "files": [
+      "dist/frontend/browser/**/*",
+      "main.js",
+      "package.json",
+      "public/**/*",
+      "splash.html",
+      "splash.css",
+      "preload.js",
+      "node_modules/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "public/logo.png"
+    },
+    "asar": true,
+    "asarUnpack": [],
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "blckwhttt",
+        "repo": "hello-its-me"
+      }
+    ]
+  }
+}

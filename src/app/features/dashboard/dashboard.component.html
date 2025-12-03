@@ -1,0 +1,236 @@
+<app-notification [show]="showNotification" [type]="notificationType" [message]="notificationMessage"
+  (closed)="onNotificationClosed()"></app-notification>
+
+<div class="min-h-screen bg-[#131216]">
+  <!-- Header -->
+  <app-page-header [showUserInfo]="true" [showLogout]="true" [user]="currentUser"
+    (logout)="logout()"></app-page-header>
+
+  <!-- Main Content -->
+  <main class="container mx-auto px-4 py-12">
+    <div class="max-w-5xl mx-auto">
+      <!-- Welcome Section -->
+      <div class="text-center mb-12">
+        <h2 class="text-4xl font-bold text-white/90 mb-4">
+          Привет, <span class="text-violet-400">{{
+            currentUser?.displayName || currentUser?.username }}</span>!
+        </h2>
+        <p class="text-white/50 text-lg">Присоединяйся к звонкам или создавай новые комнаты</p>
+      </div>
+
+      <!-- Action Cards -->
+      <div class="grid md:grid-cols-2 gap-6 mb-10">
+        <!-- Create Room Card -->
+        <div
+          class="group bg-black/30 backdrop-blur-xl rounded-3xl border border-transparent p-8 hover:border-violet-500/30 transition-all duration-300 hover:shadow-2xl hover:shadow-violet-500/10">
+          <div class="flex flex-col items-center text-center">
+            <div
+              class="w-20 h-20 mb-5 bg-linear-to-br from-violet-700 to-violet-600 rounded-[14px] flex items-center justify-center shadow-lg shadow-violet-500/20 group-hover:scale-110 transition-transform duration-300">
+              <lucide-icon [img]="Plus" [size]="36" class="text-white"></lucide-icon>
+            </div>
+            <h3 class="text-2xl font-bold text-white mb-2">Создать комнату</h3>
+            <p class="text-white/50 mb-6 text-sm">Начни новый звонок прямо сейчас</p>
+            <app-button variant="primary" size="lg" [fullWidth]="true" [loading]="isCreatingRoom"
+              [disabled]="isCreatingRoom" (clicked)="createRoom()" [appTooltip]="'Создать новую комнату для звонка'"
+              tooltipPosition="bottom">
+              @if (isCreatingRoom) {
+              Создание...
+              } @else {
+              Создать комнату
+              }
+            </app-button>
+          </div>
+        </div>
+
+        <!-- Join Room Card -->
+        <div
+          class="group bg-black/30 backdrop-blur-xl rounded-3xl border border-transparent p-8 hover:border-violet-300/30 transition-all duration-300 hover:shadow-2xl hover:shadow-violet-300/10">
+          <div class="flex flex-col items-center text-center">
+            <div
+              class="w-20 h-20 mb-5 bg-linear-to-br from-violet-500 to-violet-400 rounded-[14px] flex items-center justify-center shadow-lg shadow-violet-500/20 group-hover:scale-110 transition-transform duration-300">
+              <lucide-icon [img]="LogIn" [size]="36" class="text-white"></lucide-icon>
+            </div>
+            <h3 class="text-2xl font-bold text-white mb-2">Присоединиться</h3>
+            <p class="text-white/50 mb-6 text-sm">Введи ID комнаты друга</p>
+            <div class="w-full space-y-3">
+              <div class="relative">
+                <input type="text" [(ngModel)]="roomId" placeholder="Введи ID комнаты"
+                  class="w-full px-4 py-2.5 bg-white/5 border border-white/5 rounded-[12px] text-white placeholder:text-white/30 focus:outline-none focus:border-violet-300/30 focus:bg-[#16161f] transition-all duration-200" />
+                @if (roomId.trim()) {
+                <button type="button" (click)="copyRoomLink()"
+                  class="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-white/40 hover:text-white transition-colors"
+                  [appTooltip]="'Копировать ссылку'" tooltipPosition="left">
+                  <lucide-icon [img]="Copy" [size]="18"></lucide-icon>
+                </button>
+                }
+              </div>
+              <app-button variant="primary" size="lg" [fullWidth]="true" [disabled]="!roomId.trim()"
+                (clicked)="joinRoom()" [appTooltip]="roomId.trim() ? 'Присоединиться к комнате' : 'Введите ID комнаты'"
+                tooltipPosition="bottom">
+                Присоединиться
+              </app-button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- User Rooms Section -->
+      <div class="bg-black/30 backdrop-blur-xl rounded-3xl p-6 mb-10">
+        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div class="flex flex-col gap-2 mb-4">
+            <h3 class="text-2xl font-semibold text-white flex items-center gap-2">
+              <lucide-icon [img]="LayoutGrid" [size]="24"></lucide-icon>
+              Мои комнаты
+            </h3>
+            <p class="text-white/50 text-sm">
+              Сохраняем ваши комнаты и чаты, чтобы вы могли вернуться в них в любой момент.
+            </p>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-sm text-white/50">
+              {{ myRooms.length }} / {{ ROOM_LIMIT }}
+            </span>
+            @if (myRooms.length >= ROOM_LIMIT) {
+            <span class="px-3 py-1 rounded-full bg-red-500/10 border border-red-500/30 text-red-300 text-xs">
+              Лимит достигнут
+            </span>
+            }
+          </div>
+        </div>
+
+        @if (isRoomsLoading) {
+        <div class="py-10">
+          <app-loading-spinner size="sm" message="Загружаем комнаты..."></app-loading-spinner>
+        </div>
+        } @else if (!myRooms.length) {
+        <div class="py-10 text-center">
+          <p class="text-white/50 text-sm mb-4">У вас ещё нет созданных комнат.</p>
+          <p class="text-white/30 text-xs">
+            Создайте комнату и мы автоматически сохраним её вместе с историей чата.
+          </p>
+        </div>
+        } @else {
+        <div class="grid gap-4">
+          @for (room of myRooms; track room.roomId) {
+          <div
+            class="bg-white/2 border border-white/5 rounded-[14px] p-5 hover:border-violet-500/30 transition-colors">
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p class="text-sm uppercase tracking-wide text-white/90 font-semibold mb-2">
+                  {{ room.name || 'Без названия' }}
+                </p>
+                <div class="flex items-center gap-2 text-sm text-white/50">
+                  <span class="font-mono">{{ room.roomId }}</span>
+                  <button type="button" class="text-violet-400 hover:text-violet-300 transition-colors"
+                    (click)="copyRoomCode(room)" [appTooltip]="'Скопировать ID комнаты'" tooltipPosition="top">
+                    <lucide-icon [img]="Copy" [size]="16"></lucide-icon>
+                  </button>
+                </div>
+              </div>
+              <span class="text-sm text-white/30">Создана: <span class="text-white/50">{{ formatRoomDate(room.updatedAt) }}</span></span>
+            </div>
+
+            <div class="mt-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div class="flex flex-wrap items-center gap-3 text-sm text-white/70">
+                <span class="px-3 py-1 bg-white/5 rounded-full">
+                  {{ room.participantsCount ?? 0 }} / {{ room.maxParticipants }} участников
+                </span>
+              </div>
+              <div class="flex items-center gap-2">
+                <app-button variant="secondary" size="sm" (clicked)="joinRoomFromList(room)">
+                  Войти
+                </app-button>
+                <app-button variant="danger" size="sm" [loading]="deletingRoomId === room.roomId"
+                  (clicked)="removeRoom(room)">
+                  Удалить
+                </app-button>
+              </div>
+            </div>
+          </div>
+          }
+        </div>
+        }
+      </div>
+
+      <!-- Features Grid -->
+      <div class="bg-black/30 backdrop-blur-xl rounded-3xl p-8">
+        <h4 class="text-xl font-semibold text-white mb-8 flex items-center gap-3">
+          <div class="p-2 bg-white/5 rounded-lg">
+            <lucide-icon [img]="Layers" [size]="24" class="text-violet-200"></lucide-icon>
+          </div>
+          Мы выделяемся
+        </h4>
+        
+        <div class="flex flex-col gap-5">
+          <!-- Screen Share -->
+          <div class="p-6 bg-white/3 rounded-[14px]">
+            <div class="flex items-start gap-5">
+              <div class="shrink-0 w-12 h-12 bg-violet-200/10 rounded-[12px] flex items-center justify-center">
+                <lucide-icon [img]="Monitor" [size]="24" class="text-violet-300"></lucide-icon>
+              </div>
+              <div>
+                <h5 class="text-lg font-semibold text-white/90 mb-2">
+                  Демонстрация экрана
+                </h5>
+                <p class="text-white/60 text-sm leading-relaxed">
+                  Потоковая передача видео в разрешении от 1920p60fps до 4k120fps. Адаптивный битрейт до 25 Мбит/с обеспечивает передачу детализированного контента без артефактов компрессии.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Audio -->
+          <div class="p-6 bg-white/3 rounded-[14px]">
+            <div class="flex items-start gap-5">
+              <div class="shrink-0 w-12 h-12 bg-violet-200/10 rounded-[12px] flex items-center justify-center">
+                <lucide-icon [img]="Mic" [size]="24" class="text-violet-300"></lucide-icon>
+              </div>
+              <div>
+                <h5 class="text-lg font-semibold text-white/90 mb-2">
+                  Голос
+                </h5>
+                <p class="text-white/60 text-sm leading-relaxed">
+                  Мы используем лучший в мире кодек Opus для звонков. Он настроен на работу в режиме высокого качества с битрейтом 256 кбит/с и частотой 48 кГц. Включены алгоритмы аппаратного шумоподавления (ANS), эхокомпенсации (AEC) и нормализации уровня сигнала (AGC). Такая настройка позволяет добиться минимальной задержки и кристально чистого качества звука в звонках.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Security -->
+          <div class="p-6 bg-white/3 rounded-[14px]">
+            <div class="flex items-start gap-5">
+              <div class="shrink-0 w-12 h-12 bg-violet-200/10 rounded-[12px] flex items-center justify-center">
+                <lucide-icon [img]="ShieldCheck" [size]="24" class="text-violet-300"></lucide-icon>
+              </div>
+              <div>
+                <h5 class="text-lg font-semibold text-white/90 mb-2">
+                  Шифрование
+                </h5>
+                <p class="text-white/60 text-sm leading-relaxed">
+                  Сквозное шифрование данных по стандарту AES-256 в режиме GCM. Гарантируется целостность сессий и защита от атак типа MITM на транспортном и прикладном уровнях.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Performance -->
+          <div class="p-6 bg-white/3 rounded-[14px]">
+            <div class="flex items-start gap-5">
+              <div class="shrink-0 w-12 h-12 bg-violet-200/10 rounded-[12px] flex items-center justify-center">
+                <lucide-icon [img]="Zap" [size]="24" class="text-violet-300"></lucide-icon>
+              </div>
+              <div>
+                <h5 class="text-lg font-semibold text-white/90 mb-2">
+                  Низкая задержка
+                </h5>
+                <p class="text-white/60 text-sm leading-relaxed">
+                  Задержка (RTT) менее 20 мс благодаря оптимизированному стеку WebRTC. Эффективное управление Jitter Buffer минимизирует потерю пакетов при нестабильном соединении.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>

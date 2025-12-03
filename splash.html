@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hello, it's me - Загрузка</title>
+    <link rel="stylesheet" href="splash.css" />
+  </head>
+  <body>
+    <div class="splash-container">
+      <!-- Логотип -->
+      <div class="logo-container">
+        <img src="public/logo.png" alt="Hello, it's me" class="logo" />
+      </div>
+
+      <!-- Статус текст -->
+      <div class="status-container">
+        <p id="status-text" class="status-text">Запуск приложения...</p>
+      </div>
+
+      <!-- Прогресс бар (скрыт по умолчанию) -->
+      <div id="progress-container" class="progress-container hidden">
+        <div class="progress-bar">
+          <div id="progress-fill" class="progress-fill"></div>
+        </div>
+        <p id="progress-text" class="progress-text">0%</p>
+      </div>
+    </div>
+
+    <script>
+      const { ipcRenderer } = require('electron');
+
+      const statusText = document.getElementById('status-text');
+      const progressContainer = document.getElementById('progress-container');
+      const progressFill = document.getElementById('progress-fill');
+      const progressText = document.getElementById('progress-text');
+
+      // Функция для плавной смены текста
+      function updateStatus(text) {
+        statusText.classList.add('fade-out');
+
+        setTimeout(() => {
+          statusText.textContent = text;
+          statusText.classList.remove('fade-out');
+        }, 150);
+      }
+
+      // Показать/скрыть прогресс бар
+      function toggleProgress(show) {
+        if (show) {
+          progressContainer.classList.remove('hidden');
+          setTimeout(() => {
+            progressContainer.classList.add('visible');
+          }, 10);
+        } else {
+          progressContainer.classList.remove('visible');
+          setTimeout(() => {
+            progressContainer.classList.add('hidden');
+          }, 300);
+        }
+      }
+
+      // Обновить прогресс
+      function updateProgress(percent) {
+        progressFill.style.width = percent + '%';
+        progressText.textContent = Math.round(percent) + '%';
+      }
+
+      // Слушатели событий от main процесса
+      ipcRenderer.on('status-update', (event, message) => {
+        updateStatus(message);
+      });
+
+      ipcRenderer.on('checking-for-update', () => {
+        updateStatus('Проверяем обновления...');
+      });
+
+      ipcRenderer.on('update-available', () => {
+        updateStatus('Найдено обновление!');
+        setTimeout(() => {
+          updateStatus('Скачиваем обновление...');
+          toggleProgress(true);
+        }, 1000);
+      });
+
+      ipcRenderer.on('update-not-available', () => {
+        updateStatus('Обновлений нет');
+        setTimeout(() => {
+          updateStatus('Загрузка приложения...');
+        }, 500);
+      });
+
+      ipcRenderer.on('download-progress', (event, progressObj) => {
+        updateProgress(progressObj.percent);
+      });
+
+      ipcRenderer.on('update-downloaded', () => {
+        updateStatus('Обновление скачано!');
+        toggleProgress(false);
+        setTimeout(() => {
+          updateStatus('Устанавливаем обновление...');
+        }, 500);
+      });
+
+      ipcRenderer.on('error', () => {
+        updateStatus('Ошибка при проверке обновлений');
+        setTimeout(() => {
+          updateStatus('Загрузка приложения...');
+        }, 1000);
+      });
+
+      // Начальная проверка после небольшой задержки
+      setTimeout(() => {
+        updateStatus('Проверяем обновления...');
+      }, 500);
+    </script>
+  </body>
+</html>

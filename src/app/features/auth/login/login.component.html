@@ -1,0 +1,91 @@
+<app-notification
+  [show]="showError"
+  type="error"
+  [message]="errorMessage"
+  (closed)="onErrorClosed()"
+></app-notification>
+
+<app-auth-layout
+  title="Hello, it's me"
+  footerText="Нет аккаунта?"
+  footerLink="/auth/register"
+  footerLinkText="Зарегистрироваться"
+>
+  <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="space-y-5">
+    <!-- Email -->
+    <div>
+        <label for="email" class="block text-sm font-medium text-white/70 mb-2">
+          Email
+        </label>
+      <div class="relative">
+        <div class="absolute left-3 top-1/2 -translate-y-1/2 text-white/40">
+          <lucide-icon [img]="Mail" [size]="20"></lucide-icon>
+        </div>
+        <input
+          id="email"
+          type="email"
+          formControlName="email"
+          placeholder="your@email.com"
+          [class]="getInputClasses('email')"
+        />
+        @if (getFieldError('email')) {
+          <div class="absolute right-3 top-1/2 -translate-y-1/2 text-red-400">
+            <lucide-icon [img]="AlertCircle" [size]="20"></lucide-icon>
+          </div>
+        }
+      </div>
+      @if (getFieldError('email')) {
+        <p class="mt-2 text-sm text-red-400 flex items-center gap-1.5">
+          <span class="text-xs">⚠</span>
+          {{ getFieldError('email') }}
+          </p>
+        }
+      </div>
+      
+    <!-- Password -->
+    <div>
+        <label for="password" class="block text-sm font-medium text-white/70 mb-2">
+          Пароль
+        </label>
+      <div class="relative">
+        <div class="absolute left-3 top-1/2 -translate-y-1/2 text-white/40">
+          <lucide-icon [img]="Lock" [size]="20"></lucide-icon>
+        </div>
+        <input
+          id="password"
+          type="password"
+          formControlName="password"
+          placeholder="••••••••"
+          [class]="getInputClasses('password')"
+        />
+        @if (getFieldError('password')) {
+          <div class="absolute right-3 top-1/2 -translate-y-1/2 text-red-400">
+            <lucide-icon [img]="AlertCircle" [size]="20"></lucide-icon>
+          </div>
+        }
+      </div>
+      @if (getFieldError('password')) {
+        <p class="mt-2 text-sm text-red-400 flex items-center gap-1.5">
+          <span class="text-xs">⚠</span>
+          {{ getFieldError('password') }}
+        </p>
+      }
+    </div>
+
+    <!-- Submit Button -->
+    <app-button
+        type="submit"
+      variant="primary"
+      size="lg"
+      [fullWidth]="true"
+      [loading]="isLoading"
+        [disabled]="isLoading"
+      >
+        @if (isLoading) {
+            Вход...
+        } @else {
+        Войти
+        }
+    </app-button>
+    </form>
+</app-auth-layout>
