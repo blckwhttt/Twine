@@ -1,18 +1,31 @@
 # 👋 Hello, it's me! (Frontend)
 
-Hi there! You've reached the holy grail — the frontend of our video calling and screen sharing app. Yes, this is the part users stare at 99% of the time (hopefully with joy).
+Welcome to the frontend repository of **Hello, it's me** — a next-generation messenger built primarily for gamers who value quality, speed, and freedom.
 
-We're building a cozy place for communication where you can create a room, call your friends, and share your screen (even if it shows code that doesn't work yet).
+We are building a space where communication is crystal clear, completely free, and void of harsh restrictions. No paywalls for higher bitrate, no artificial limits — just you and your squad.
 
-## 🛠 Tech Stack
-We love living on the bleeding edge (and sometimes cutting ourselves on it), so our stack is fresh:
+## 🎨 Design Philosophy
+We believe that "gamer aesthetic" doesn't have to mean aggressive red accents or cluttered interfaces. We follow a **Refined Gamer** approach:
 
-- **Angular 18** (Standalone Components) — because modules are so last season.
-- **Tailwind CSS 4** — styling at the speed of light without context switching.
-- **Electron** — wrapping all this beauty into a native desktop app.
-- **Socket.IO Client** — real-time magic, so your "Hello!" arrives instantly.
+- **Minimalism & Modernity**: A clean interface aimed at performance and comfort.
+- **Violet Vibes**: We love the violet spectrum. It’s deep, calming, and stylish.
+- **Smart UX**: We don't leave you guessing. Expect helpful tooltips and clear explanations for complex audio/video settings.
+- **Onest Typography**: Using the *Onest* font for a friendly yet modern look that keeps things readable during long sessions.
+- **Glassmorphism**: Subtle blur effects and smooth animations (scale/opacity) that make the app feel alive without killing your GPU.
 
-## 🚀 About
-This is the Open Source client part of our project. Our backend is a bit shy (and keeps secrets), so it lives separately. But here everything is transparent! Explore, suggest improvements, or just watch how we cook up Angular.
+## 🛠 Under the Hood
+We use a cutting-edge stack to ensure low latency and high stability:
 
-*Made with love and lots of console.log()*
+- **Angular 18** (Standalone) — Modern architecture without legacy baggage.
+- **Tailwind CSS 4** — For rapid, consistent styling.
+- **Electron** — Delivering a native desktop experience.
+- **WebRTC** — The engine behind our high-quality audio and video.
+- **Socket.IO** — Instant state synchronization.
+- **Lucide Icons** — Crisp visual language.
+
+## 🚀 Open Source & Context
+This repository contains the **client-side code**. While our Backend (NestJS) is currently private (it's a bit shy), everything here is open for inspection.
+
+We are building this for production, focusing on security, scalability, and — most importantly — a user experience that respects your time and hardware.
+
+*Made with love, code, and zero cringe.*
